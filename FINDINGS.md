@@ -200,6 +200,7 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 | Reconnect | After board reset, the bonded Kindle reconnects automatically within seconds (uses a resolvable private address). |
 | Page forward `0x4E` / back `0x4B` | Work. |
 | Brightness up `0x006F` / down `0x0070` | Work. |
+| Hold-to-repeat | Brightness up/down held 2 s (`U`, `D`) ramps continuously. Works. |
 | Sleep `0x0030` | Puts the Kindle to sleep; link stays connected. |
 | Wake from sleep | Neither a page key nor `0x0030` wakes the Kindle. Wake with its own power button. Expected; see below. |
 | Reconnect after long absence | Remote dropped the link and stopped advertising (`o`), then resumed (`a`). Offline 60 s: reconnected 0.27 s after advertising resumed. 180 s: 2.3 s. 600 s: 2.9 s. No sign of a reconnect limit within 10 min, so the Kindle keeps a background connect to the bonded device. Kindle was asked to stay awake (not confirmed). A deep-sleep remote would still reconnect, at a cost of ~0.3-3 s on the first press. |
@@ -217,7 +218,7 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 **Other remote features in 5.20.1 (`input_manager` / `acsbtfd` strings, 2026-10-08):**
 * Only 5 keys pass `capability_filter`, and only 3 actions have handlers (`system.sleep`, `display.brightness_up/down`). Any other key, consumer usage or System Wake Up is dropped. There are no hidden keys to unlock.
 * The trigger engine supports `long_press`, `double_tap` and `chord` (`chord_keys`, `chord_window_ms`, `threshold_ms`), but `page_turner` has `trigger_detection: false`, so only `press` is used. The Kindle does not detect the Click's "both buttons" chord; the remote itself sends `0x0030`.
-* Hold-to-repeat: `kernel_repeat` 500 ms / 333 ms, and brightness dispatches on `press` and `repeat`. Holding the brightness key down should step brightness continuously. Page keys map on `press` only. Untested.
+* Hold-to-repeat: `kernel_repeat` 500 ms / 333 ms, and brightness dispatches on `press` and `repeat`. Confirmed 2026-10-08: holding `0x006F` / `0x0070` for 2 s ramps brightness continuously. Page keys map on `press` only; page-forward repeat on a 2 s hold not yet recorded.
 * Input stages: 50 ms debounce, 100 events/s (burst 10). At 180 degrees rotation, forward and back are swapped automatically.
 * Remapping is done Kindle-side (`addMapping` / `swapEvents` over IPC, persisted to `/var/local/input_manager/mappings.ini`, max 8 overrides). That is how Settings swaps forward/back. The remote cannot set it.
 * `acsbtfd` knows only two device types: `BleHidPageTurner` (matched by VID/PID) and A2DP `AudioSink`. It reads FW revision `0x2A26` for display. Battery comes from BAS notify and also from the HID host battery callback (`AceHidBatteryLevelCb`, raw/min/max normalized). Reconnect runs a bounded number of cycles (`max cycles reached -- stopping`). In practice this is not a problem: see the reconnect row in the results table.
