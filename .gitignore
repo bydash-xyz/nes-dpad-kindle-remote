@@ -1,0 +1,16 @@
+# Amazon firmware artifacts (large, proprietary; keep local only)
+*.bin
+extracted_fw/
+extracted/
+
+# PlatformIO
+.pio/
+.vscode/
+
+# Test-bench session files
+protocol_test/tools/serial.log
+protocol_test/tools/cmd.txt
+protocol_test/tools/scan.log
+
+.DS_Store
+__pycache__/
