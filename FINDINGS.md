@@ -202,6 +202,7 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 | Brightness up `0x006F` / down `0x0070` | Work. |
 | Sleep `0x0030` | Puts the Kindle to sleep; link stays connected. |
 | Wake from sleep | Neither a page key nor `0x0030` wakes the Kindle. Wake with its own power button. Expected; see below. |
+| Reconnect after long absence | Remote dropped the link and stopped advertising (`o`), then resumed (`a`). Offline 60 s: reconnected 0.27 s after advertising resumed. 180 s: 2.3 s. 600 s: 2.9 s. No sign of a reconnect limit within 10 min, so the Kindle keeps a background connect to the bonded device. Kindle was asked to stay awake (not confirmed). A deep-sleep remote would still reconnect, at a cost of ~0.3-3 s on the first press. |
 | Battery `< 20%` / `< 5%` | Low and critical warnings both shown on notify. |
 
 **Why the remote cannot wake the Kindle (firmware analysis, 2026-10-08): by design, not a bug in our implementation.**
@@ -219,7 +220,7 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 * Hold-to-repeat: `kernel_repeat` 500 ms / 333 ms, and brightness dispatches on `press` and `repeat`. Holding the brightness key down should step brightness continuously. Page keys map on `press` only. Untested.
 * Input stages: 50 ms debounce, 100 events/s (burst 10). At 180 degrees rotation, forward and back are swapped automatically.
 * Remapping is done Kindle-side (`addMapping` / `swapEvents` over IPC, persisted to `/var/local/input_manager/mappings.ini`, max 8 overrides). That is how Settings swaps forward/back. The remote cannot set it.
-* `acsbtfd` knows only two device types: `BleHidPageTurner` (matched by VID/PID) and A2DP `AudioSink`. It reads FW revision `0x2A26` for display. Battery comes from BAS notify and also from the HID host battery callback (`AceHidBatteryLevelCb`, raw/min/max normalized). Reconnect runs a bounded number of cycles (`max cycles reached -- stopping`). After that the Kindle stops trying until something restarts reconnect, which is likely BT resume or toggling. Untested.
+* `acsbtfd` knows only two device types: `BleHidPageTurner` (matched by VID/PID) and A2DP `AudioSink`. It reads FW revision `0x2A26` for display. Battery comes from BAS notify and also from the HID host battery callback (`AceHidBatteryLevelCb`, raw/min/max normalized). Reconnect runs a bounded number of cycles (`max cycles reached -- stopping`). In practice this is not a problem: see the reconnect row in the results table.
 * The folio (`FOLIO_TUTORIAL_SHOWN`, `folio_paired_dialog` via powerd `getPogoAccessory`) is the magnetic page-turn cover on pogo pins, not BLE.
 
 Test-bench notes: the S3 board's serial is a WCH CH343 (`/dev/cu.usbmodem...`), so keep `ARDUINO_USB_CDC_ON_BOOT` off. Opening the port resets the board, so `protocol_test/tools/bridge.py` keeps it open and takes commands from `tools/cmd.txt`. A previously bonded Mac (board was "ESP32-S3-Synth") auto-reconnected and blocked advertising until it was forgotten. Claude Code cannot use CoreBluetooth on macOS (no usage description in its bundle); run `tools/ble_scan.py` from Terminal.app.

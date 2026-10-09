@@ -207,6 +207,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
                   NimBLEAddress(desc->peer_ota_addr).toString().c_str(),
                   desc->conn_itvl * 1.25f, desc->conn_latency,
                   desc->supervision_timeout * 10);
+    if (offline) Serial.println("[RC] UNEXPECTED connect while offline");
     if (onlineSince) {
       Serial.printf("[RC] reconnected %lu ms after advertising resumed\n", millis() - onlineSince);
       onlineSince = 0;
@@ -333,6 +334,7 @@ void setup() {
 
   pServer = NimBLEDevice::createServer();
   pServer->setCallbacks(new ServerCallbacks());
+  pServer->advertiseOnDisconnect(false);  // onDisconnect restarts it unless offline
 
   // NimBLEHIDDevice creates the HID (0x1812), Device Information (0x180A) and
   // Battery (0x180F) services itself. Add characteristics to those instead of
