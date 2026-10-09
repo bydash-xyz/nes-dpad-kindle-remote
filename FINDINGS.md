@@ -201,8 +201,26 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 | Page forward `0x4E` / back `0x4B` | Work. |
 | Brightness up `0x006F` / down `0x0070` | Work. |
 | Sleep `0x0030` | Puts the Kindle to sleep; link stays connected. |
-| Wake from sleep | Neither a page key nor `0x0030` wakes the Kindle. Wake with its own power button. |
+| Wake from sleep | Neither a page key nor `0x0030` wakes the Kindle. Wake with its own power button. Expected; see below. |
 | Battery `< 20%` / `< 5%` | Low and critical warnings both shown on notify. |
+
+**Why the remote cannot wake the Kindle (firmware analysis, 2026-10-08): by design, not a bug in our implementation.**
+* `input_manager` handles the remote's `KEY_POWER` (`0x0030`) as the action `system.sleep` (`categories.json`, `dispatch_on: ["press"]`). The handler at `0x21294` calls powerd proxy vtable slot `0x1c`. The vtable at `0x3bc70` maps that slot to `PowerManagementServiceProxy::setPowerButtonIfActiveAsync(1)`. The name says it acts only when the device is active, so it is one-way sleep, not a toggle. The toggle `setPowerButtonAsync` is slot `0x18` and is never called.
+* Cross-check: brightness up/down call slot `0x68` = `stepBrightnessWithUI(+1/-1)`, which matches the vtable mapping.
+* `input_manager` reaches powerd in only three places: sleep plus the two brightness calls. `setWakeUpAsync` (slot `0x14`) is in the vtable but never called. `acsbtfd`, `btd` and `btmanagerd` have no power-button or wake calls.
+* The `capability_filter` stage passes only the 5 listed keys, so a HID System Wake Up / `KEY_WAKEUP` report would be dropped.
+* Page keys are emitted to the virtual device `kindle-input-pt`. That device is not a powerd wake source, so the UI ignores them while in the screensaver.
+* The official Kindle Click (announced 2026-10-01, ships 2026-10-28) is described only as "press both side buttons to sleep". Neither Amazon's copy nor the 5.20.1 pairing popup (`pillow.pageTurnerPairedPopup*`) mentions waking. Recheck after a firmware update ships with the Click, since a newer `input_manager` could add a wake path.
+* Consequence: no firmware change on our side can wake a 5.20.1 Kindle. Keep the Down-hold sleep mapping.
+
+**Other remote features in 5.20.1 (`input_manager` / `acsbtfd` strings, 2026-10-08):**
+* Only 5 keys pass `capability_filter`, and only 3 actions have handlers (`system.sleep`, `display.brightness_up/down`). Any other key, consumer usage or System Wake Up is dropped. There are no hidden keys to unlock.
+* The trigger engine supports `long_press`, `double_tap` and `chord` (`chord_keys`, `chord_window_ms`, `threshold_ms`), but `page_turner` has `trigger_detection: false`, so only `press` is used. The Kindle does not detect the Click's "both buttons" chord; the remote itself sends `0x0030`.
+* Hold-to-repeat: `kernel_repeat` 500 ms / 333 ms, and brightness dispatches on `press` and `repeat`. Holding the brightness key down should step brightness continuously. Page keys map on `press` only. Untested.
+* Input stages: 50 ms debounce, 100 events/s (burst 10). At 180 degrees rotation, forward and back are swapped automatically.
+* Remapping is done Kindle-side (`addMapping` / `swapEvents` over IPC, persisted to `/var/local/input_manager/mappings.ini`, max 8 overrides). That is how Settings swaps forward/back. The remote cannot set it.
+* `acsbtfd` knows only two device types: `BleHidPageTurner` (matched by VID/PID) and A2DP `AudioSink`. It reads FW revision `0x2A26` for display. Battery comes from BAS notify and also from the HID host battery callback (`AceHidBatteryLevelCb`, raw/min/max normalized). Reconnect runs a bounded number of cycles (`max cycles reached -- stopping`). After that the Kindle stops trying until something restarts reconnect, which is likely BT resume or toggling. Untested.
+* The folio (`FOLIO_TUTORIAL_SHOWN`, `folio_paired_dialog` via powerd `getPogoAccessory`) is the magnetic page-turn cover on pogo pins, not BLE.
 
 Test-bench notes: the S3 board's serial is a WCH CH343 (`/dev/cu.usbmodem...`), so keep `ARDUINO_USB_CDC_ON_BOOT` off. Opening the port resets the board, so `protocol_test/tools/bridge.py` keeps it open and takes commands from `tools/cmd.txt`. A previously bonded Mac (board was "ESP32-S3-Synth") auto-reconnected and blocked advertising until it was forgotten. Claude Code cannot use CoreBluetooth on macOS (no usage description in its bundle); run `tools/ble_scan.py` from Terminal.app.
 
@@ -311,6 +329,7 @@ CONFIG_PM_DEVICE=y
     };
 };
 ```
+`&kp C_BRI_UP` holds the usage while Up is held, so the Kindle's key repeat ramps brightness (500 ms delay, 333 ms period). Down cannot ramp: `hold_sleep` sends `C_BRI_DN` as a tap on release, and a hold becomes sleep.
 Plus a direct-GPIO kscan in `config/xiao_ble.overlay` for D0-D3 (active low, internal pull-up).
 
 **Required: manufacturer data in the advertisement.** The Kindle only discovers the remote if the primary advertising packet carries AD `0xFF` = `71 01 04 43` (validated on the ESP32-S3). Stock ZMK builds its advertising data (flags, name, appearance, service UUIDs) in `app/src/ble.c` with no config option for manufacturer data. This needs a small patch or a fork of ZMK that adds `BT_DATA(BT_DATA_MANUFACTURER_DATA, ...)` to the `zmk_ble_ad` array. Check the 31-byte budget: flags 3 + mfr 6 + name 22 = 31 if the name stays in the primary packet; otherwise move the name to the scan response.

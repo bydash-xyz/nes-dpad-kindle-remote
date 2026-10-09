@@ -22,6 +22,8 @@ If the monitor shows nothing, uncomment `-DARDUINO_USB_CDC_ON_BOOT=1` in `platfo
 | 7 | Battery UI | `1` (10%), `0` (0%) | Low / critical battery warning |
 | 8 | Reconnect | Reset the ESP32 | Reconnects without re-pairing |
 | 9 | Connection parameters | Read the connect log; press `i` | Note interval/latency the Kindle uses and whether it accepts a longer one |
+| 10 | Hold-to-repeat | `U`, `D`, `F` (key held 2 s) | Brightness steps ~6 times; note whether page forward repeats |
+| 11 | Reconnect limit | `o` (drop link, stop advertising), wait N min, `a` | Note whether and how fast the Kindle reconnects (`[RC] reconnected ... ms`); increase N until it stops |
 
 If test 1 fails: unpair on the Kindle, press `c`, press `x` (switch to PnP source 0x02), retry.
 

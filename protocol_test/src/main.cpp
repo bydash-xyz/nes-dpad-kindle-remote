@@ -44,6 +44,7 @@
 
 #define DEBOUNCE_MS        15
 #define HOLD_SLEEP_MS      1500
+#define HOLD_TEST_MS       2000   // U/D/F: 2 s hold = 1 press + ~5 repeats if the Kindle repeats
 
 #define REPORT_ID_KEYBOARD 1
 #define REPORT_ID_CONSUMER 2
@@ -135,29 +136,57 @@ static void requestParams(uint16_t minI, uint16_t maxI, uint16_t lat, uint16_t t
                 minI * 1.25f, maxI * 1.25f, lat, to * 10);
 }
 
-static void sendKeyboard(uint8_t key, const char* label) {
-  if (!connected) { Serial.println("[TX] not connected"); return; }
+// Single report: key/usage != 0 is a press, 0 is the release.
+static void keyboardReport(uint8_t key) {
   uint8_t r[8] = {0};
   r[2] = key;
   pInKeyboard->setValue(r, sizeof(r));
   pInKeyboard->notify();
-  delay(30);
-  memset(r, 0, sizeof(r));
-  pInKeyboard->setValue(r, sizeof(r));
-  pInKeyboard->notify();
-  Serial.printf("[TX] keyboard 0x%02X (%s)\n", key, label);
 }
 
-static void sendConsumer(uint16_t usage, const char* label) {
-  if (!connected) { Serial.println("[TX] not connected"); return; }
+static void consumerReport(uint16_t usage) {
   uint8_t r[2] = { (uint8_t)(usage & 0xFF), (uint8_t)(usage >> 8) };
   pInConsumer->setValue(r, sizeof(r));
   pInConsumer->notify();
-  delay(30);
-  r[0] = r[1] = 0;
-  pInConsumer->setValue(r, sizeof(r));
-  pInConsumer->notify();
-  Serial.printf("[TX] consumer 0x%04X (%s)\n", usage, label);
+}
+
+// Tap = press, 30 ms, release. holdMs > 0 keeps the key down that long to
+// exercise the Kindle's kernel_repeat (500 ms delay, 333 ms period).
+static void sendKeyboard(uint8_t key, const char* label, uint32_t holdMs = 30) {
+  if (!connected) { Serial.println("[TX] not connected"); return; }
+  keyboardReport(key);
+  delay(holdMs);
+  keyboardReport(0);
+  Serial.printf("[TX] keyboard 0x%02X (%s) held %lu ms\n", key, label, (unsigned long)holdMs);
+}
+
+static void sendConsumer(uint16_t usage, const char* label, uint32_t holdMs = 30) {
+  if (!connected) { Serial.println("[TX] not connected"); return; }
+  consumerReport(usage);
+  delay(holdMs);
+  consumerReport(0);
+  Serial.printf("[TX] consumer 0x%04X (%s) held %lu ms\n", usage, label, (unsigned long)holdMs);
+}
+
+// Reconnect-limit test: drop the link and stop advertising so the Kindle's
+// reconnect cycles (acsbtfd "Reconnect:OnCycleTimer ... max cycles") run out.
+static bool offline = false;
+static uint32_t offlineSince = 0, onlineSince = 0;
+
+static void goOffline() {
+  offline = true;
+  offlineSince = millis();
+  NimBLEDevice::getAdvertising()->stop();
+  if (connected) pServer->disconnect(connHandle);
+  Serial.printf("[RC] offline at t=%lu s: link dropped, advertising stopped\n", offlineSince / 1000);
+}
+
+static void goOnline() {
+  offline = false;
+  onlineSince = millis();
+  bool ok = NimBLEDevice::startAdvertising();
+  Serial.printf("[RC] online at t=%lu s after %lu s offline, adv.start=%s\n",
+                onlineSince / 1000, (onlineSince - offlineSince) / 1000, ok ? "ok" : "FAILED");
 }
 
 static void setBattery(uint8_t pct) {
@@ -178,9 +207,14 @@ class ServerCallbacks : public NimBLEServerCallbacks {
                   NimBLEAddress(desc->peer_ota_addr).toString().c_str(),
                   desc->conn_itvl * 1.25f, desc->conn_latency,
                   desc->supervision_timeout * 10);
+    if (onlineSince) {
+      Serial.printf("[RC] reconnected %lu ms after advertising resumed\n", millis() - onlineSince);
+      onlineSince = 0;
+    }
   }
   void onDisconnect(NimBLEServer* s, ble_gap_conn_desc* desc) override {
     connected = false;
+    if (offline) { Serial.println("[BLE] disconnected (offline, not advertising)"); return; }
     Serial.println("[BLE] disconnected, advertising again");
     NimBLEDevice::startAdvertising();
   }
@@ -227,7 +261,10 @@ static int readBtn(Btn& b) {
 static void pollButtons() {
   if (readBtn(btnRight) == 1) sendKeyboard(HID_KEY_PAGE_DOWN, "page forward");
   if (readBtn(btnLeft)  == 1) sendKeyboard(HID_KEY_PAGE_UP,   "page back");
-  if (readBtn(btnUp)    == 1) sendConsumer(CONSUMER_BRIGHTNESS_UP, "brightness up");
+  // Up: press/release follow the button so holding it ramps brightness
+  int u = readBtn(btnUp);
+  if (connected && u == 1)  { consumerReport(CONSUMER_BRIGHTNESS_UP); Serial.println("[TX] brightness up pressed"); }
+  if (connected && u == -1) { consumerReport(0); Serial.println("[TX] brightness up released"); }
 
   int e = readBtn(btnDown);
   if (e == 1) downHoldFired = false;
@@ -250,6 +287,11 @@ static void handleSerial() {
       case 'u': sendConsumer(CONSUMER_BRIGHTNESS_UP,   "brightness up"); break;
       case 'd': sendConsumer(CONSUMER_BRIGHTNESS_DOWN, "brightness down"); break;
       case 's': sendConsumer(CONSUMER_POWER, "sleep"); break;
+      case 'U': sendConsumer(CONSUMER_BRIGHTNESS_UP,   "brightness up",   HOLD_TEST_MS); break;
+      case 'D': sendConsumer(CONSUMER_BRIGHTNESS_DOWN, "brightness down", HOLD_TEST_MS); break;
+      case 'F': sendKeyboard(HID_KEY_PAGE_DOWN, "page forward", HOLD_TEST_MS); break;
+      case 'o': goOffline(); break;
+      case 'a': goOnline(); break;
       case 'B': setBattery(100); break;
       case 'x':
         pnpSource = (pnpSource == 0x01) ? 0x02 : 0x01;
@@ -343,7 +385,7 @@ void setup() {
                 a->isAdvertising());
 
   Serial.println("[BLE] advertising as \"" DEVICE_NAME "\"");
-  Serial.println("Commands: f b u d s | 0-9 B battery | x toggle PnP source | c clear bonds | i/j/k/l conn param presets | ? status");
+  Serial.println("Commands: f b u d s | U D F hold 2 s | o offline a online | 0-9 B battery | x toggle PnP source | c clear bonds | i/j/k/l conn param presets | ? status");
   printStatus();
 }
 
