@@ -1,0 +1,35 @@
+#include <behaviors.dtsi>
+#include <dt-bindings/zmk/keys.h>
+
+/ {
+    macros {
+        /* 30 ms tap, same as the validated ESP32 test */
+        ctap: consumer_tap {
+            compatible = "zmk,behavior-macro-one-param";
+            #binding-cells = <1>;
+            tap-ms = <30>;
+            wait-ms = <0>;
+            bindings = <&macro_param_1to1>, <&macro_tap &kp MACRO_PLACEHOLDER>;
+        };
+    };
+
+    behaviors {
+        /* Down: tap = brightness down, hold 1.5 s = Kindle sleep */
+        hold_sleep: hold_sleep {
+            compatible = "zmk,behavior-hold-tap";
+            #binding-cells = <2>;
+            tapping-term-ms = <1500>;
+            flavor = "tap-preferred";
+            bindings = <&kp>, <&ctap>;
+        };
+    };
+
+    keymap {
+        compatible = "zmk,keymap";
+
+        default_layer {
+            /*  Right       Left        Up             Down                       */
+            bindings = <&kp PG_DN  &kp PG_UP  &kp C_BRI_UP  &hold_sleep C_POWER C_BRI_DN>;
+        };
+    };
+};

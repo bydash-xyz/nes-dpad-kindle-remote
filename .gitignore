@@ -14,3 +14,7 @@ protocol_test/tools/scan.log
 
 .DS_Store
 __pycache__/
+
+# ZMK local workspace and build output
+zmk-workspace/
+zmk-config/*.uf2

@@ -1,0 +1,53 @@
+diff --git a/app/Kconfig b/app/Kconfig
+index fcfdfcbd..cb726095 100644
+--- a/app/Kconfig
++++ b/app/Kconfig
+@@ -245,9 +245,16 @@ config BT_PERIPHERAL_PREF_LATENCY
+ config BT_PERIPHERAL_PREF_TIMEOUT
+     default 400
+ 
++config ZMK_BLE_KINDLE_REMOTE_ADV
++    bool "Advertise as an Amazon Kindle Remote"
++    help
++      Adds manufacturer data 71 01 04 43 to the advertising packet and moves
++      the device name to the scan response.
++
+ # The device name should be 16 characters or less so it fits within the
+ # advertising data.
+ config BT_DEVICE_NAME_MAX
++    default 21 if ZMK_BLE_KINDLE_REMOTE_ADV
+     default 16
+ 
+ endif # ZMK_BLE
+diff --git a/app/src/ble.c b/app/src/ble.c
+index 51b172b9..fab679f8 100644
+--- a/app/src/ble.c
++++ b/app/src/ble.c
+@@ -55,9 +55,16 @@ enum advertising_type {
+ 
+ #define CURR_ADV(adv) (adv << 4)
+ 
++#if IS_ENABLED(CONFIG_ZMK_BLE_KINDLE_REMOTE_ADV)
++/* Name goes in the scan response; the primary packet has no room for a 20-char name. */
++#define ZMK_ADV_CONN_NAME                                                                          \
++    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN | BT_LE_ADV_OPT_USE_NAME, BT_GAP_ADV_FAST_INT_MIN_2,       \
++                    BT_GAP_ADV_FAST_INT_MAX_2, NULL)
++#else
+ #define ZMK_ADV_CONN_NAME                                                                          \
+     BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN | BT_LE_ADV_OPT_USE_NAME | BT_LE_ADV_OPT_FORCE_NAME_IN_AD,  \
+                     BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2, NULL)
++#endif
+ 
+ static struct zmk_ble_profile profiles[ZMK_BLE_PROFILE_COUNT];
+ static uint8_t active_profile;
+@@ -75,6 +82,10 @@ static struct bt_data zmk_ble_ad[] = {
+     BT_DATA_BYTES(BT_DATA_UUID16_SOME, BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL), /* HID Service */
+                   BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)                        /* Battery Service */
+                   ),
++#if IS_ENABLED(CONFIG_ZMK_BLE_KINDLE_REMOTE_ADV)
++    /* Kindle acsbtfd discovery filter: company 0x0171 (LE16), PID 0x0443 (BE16) */
++    BT_DATA_BYTES(BT_DATA_MANUFACTURER_DATA, 0x71, 0x01, 0x04, 0x43),
++#endif
+ };
+ 
+ #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)

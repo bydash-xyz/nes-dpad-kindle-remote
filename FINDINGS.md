@@ -194,6 +194,7 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 | Check | Result |
 |---|---|
 | Discovery | Not listed with HID `0x1812` alone. Listed after adding mfr data `71 01 04 43` to the primary packet (see section 4 note). Name in scan response is fine. |
+| Display name | The Kindle ignores the advertised name and lists the remote as "Kindle Click"; a second bonded remote with the same VID/PID (XIAO/ZMK, 2026-10-11, ESP32 still paired) became "Kindle Click 2". The string is not in `extracted/` (plain or `.mo` grep), so it comes from a part of the firmware not extracted. |
 | Pairing | Just Works, encrypted + bonded, first try. PnP source `0x01` accepted (`0x02` not needed). |
 | GATT reads | Kindle reads PnP ID, FW revision, battery; subscribes to keyboard, consumer and battery reports. |
 | Connection params | Kindle default: 48.75 ms at connect, 7.5 ms during discovery, then 20 ms / latency 0 / timeout 20 s; unchanged during Kindle sleep. Peripheral requests: the Kindle **always keeps the interval at 20 ms** (ignored 30-50 ms and 100-125 ms) but **accepts the requested latency and timeout** (latency 4, 30; timeout 4 s, 6 s). 20 ms + latency 30 = ~620 ms idle wake-ups, no noticeable page-turn delay. |
@@ -205,6 +206,8 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 | Wake from sleep | Neither a page key nor `0x0030` wakes the Kindle. Wake with its own power button. Expected; see below. |
 | Reconnect after long absence | Remote dropped the link and stopped advertising (`o`), then resumed (`a`). Offline 60 s: reconnected 0.27 s after advertising resumed. 180 s: 2.3 s. 600 s: 2.9 s. No sign of a reconnect limit within 10 min, so the Kindle keeps a background connect to the bonded device. Kindle was asked to stay awake (not confirmed). A deep-sleep remote would still reconnect, at a cost of ~0.3-3 s on the first press. |
 | Battery `< 20%` / `< 5%` | Low and critical warnings both shown on notify. |
+
+**XIAO nRF52840 + ZMK (`zmk-config/`, 2026-10-11), same Kindle on 5.20.1:** discovered and paired first try (listed as "Kindle Click 2" while the ESP32 was still bonded). Page forward/back, brightness up/down and Down-hold sleep all work, driven by jumpering D0-D3 to GND on USB power. Battery not checked yet: with no cell, BAT shows charger voltage; retest warnings with the 401230 cell.
 
 **Why the remote cannot wake the Kindle (firmware analysis, 2026-10-08): by design, not a bug in our implementation.**
 * `input_manager` handles the remote's `KEY_POWER` (`0x0030`) as the action `system.sleep` (`categories.json`, `dispatch_on: ["press"]`). The handler at `0x21294` calls powerd proxy vtable slot `0x1c`. The vtable at `0x3bc70` maps that slot to `PowerManagementServiceProxy::setPowerButtonIfActiveAsync(1)`. The name says it acts only when the device is active, so it is one-way sleep, not a toggle. The toggle `setPowerButtonAsync` is slot `0x18` and is never called.
@@ -335,6 +338,16 @@ CONFIG_PM_DEVICE=y
 Plus a direct-GPIO kscan in `config/xiao_ble.overlay` for D0-D3 (active low, internal pull-up).
 
 **Required: manufacturer data in the advertisement.** The Kindle only discovers the remote if the primary advertising packet carries AD `0xFF` = `71 01 04 43` (validated on the ESP32-S3). Stock ZMK builds its advertising data (flags, name, appearance, service UUIDs) in `app/src/ble.c` with no config option for manufacturer data. This needs a small patch or a fork of ZMK that adds `BT_DATA(BT_DATA_MANUFACTURER_DATA, ...)` to the `zmk_ble_ad` array. Check the 31-byte budget: flags 3 + mfr 6 + name 22 = 31 if the name stays in the primary packet; otherwise move the name to the scan response.
+
+### 6.2a Local build (2026-10-11)
+* Config lives in `zmk-config/` (`config/xiao_ble.conf`, `.overlay`, `.keymap`, `patches/0001-kindle-remote-advertising.patch`); `zmk-config/build.sh` builds `kindle_remote.uf2` from a gitignored local workspace `zmk-workspace/` (ZMK main `4dd95d78`, Zephyr `v4.1.0+zmk-fixes`, SDK 0.17.0). Board target `xiao_ble//zmk`.
+* The patch adds Kconfig `ZMK_BLE_KINDLE_REMOTE_ADV`: mfr data `71 01 04 43` in the primary packet, name moved to the scan response (`FORCE_NAME_IN_AD` dropped), `BT_DEVICE_NAME_MAX` 21 (Zephyr asserts name length < max).
+* ZMK main now defaults `BT_DIS_PNP_VID_SRC` to 2 (commit `4dd95d78`, 2026-10-09); the conf sets 1 explicitly.
+* `CONFIG_ZMK_USB=n`: with USB HID on, ZMK sends keys to the USB host whenever plugged in. Side effect: no USB serial; flash by double-tap reset.
+* Keymap: Down tap sends `C_BRI_DN` through a 30 ms tap macro, matching the ESP32 test (shorter taps are untested against the Kindle's 50 ms debounce stage).
+* Host gotchas: CMake 4.x breaks Zephyr 4.1's SDK lookup unless `ZEPHYR_TOOLCHAIN_VARIANT=zephyr` and `ZEPHYR_SDK_INSTALL_DIR` are set; `west sdk install` failed to list releases, so the SDK was downloaded from the sdk-ng v0.17.0 release.
+* `CONFIG_PM_DEVICE` is not set in the current build; add it when measuring idle current (6.3).
+* XIAO received: UF2 bootloader 0.6.1, SoftDevice S140 7.3.0, Board-ID `Seeed_XIAO_nRF52840_Sense` (same bootloader on plain and Sense boards).
 
 ### 6.3 QSPI flash deep power-down
 * Zephyr's `xiao_ble` devicetree marks the P25Q16H `has-dpd`; with the flash driver and `CONFIG_PM_DEVICE` enabled it is held in deep power-down.

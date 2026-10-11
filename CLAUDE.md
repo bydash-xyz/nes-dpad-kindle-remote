@@ -10,7 +10,8 @@ A BLE page-turner remote for the Kindle Scribe / Colorsoft (FW 5.20.1+) that the
 - Platform decided: **Seeed XIAO nRF52840 (plain) + ZMK firmware**. The ESP32 path is superseded for the final build.
 - Parts ordered: XIAO nRF52840 3-pack, 401230 100 mAh LiPo 2-pack (arrives ~Oct 16), Kirecoo 2" copper tape (conductive adhesive), polyimide/Kapton tape.
 - Done: **protocol validated on ESP32-S3** with `protocol_test/` (2026-10-08): discovery, pairing, page fwd/back, brightness, sleep, battery warnings all pass. Remote cannot wake the Kindle. Results in FINDINGS.md 4.1.
-- Not started: PETG insert CAD, copper-tape pad build, `zmk-config` repo, current measurement.
+- In progress: ZMK build in `zmk-config/` (local, `build.sh`), flashed to XIAO 2026-10-11; pairs with the Kindle and all keys work (FINDINGS 4.1). Battery reporting untested until the cell arrives.
+- Not started: PETG insert CAD, copper-tape pad build, current measurement.
 
 ## Kindle protocol (must match exactly)
 - **Advertising must carry manufacturer data AD `0xFF` = `71 01 04 43`** (company 0x0171 LE, PID 0x0443 big-endian) in the primary packet; without it the Kindle never lists the device (HID UUID alone is rejected). Name `Amazon Kindle Remote` (scan response OK); HID `0x1812` UUID.
@@ -41,6 +42,7 @@ A BLE page-turner remote for the Kindle Scribe / Colorsoft (FW 5.20.1+) that the
 | `FINDINGS.md` | Full findings, decisions, BOM, power budget, next steps. Update section 4.1 with test results. |
 | `FINDINGS.orig.md` | Pre-revision copy. Do not edit. |
 | `REVERSE_ENGINEERING.md`, `classify_*.txt`, `init_tables.txt` | Disassembly notes for `acsbtfd` / `input_manager`. |
+| `zmk-config/` | ZMK config + Kindle advertising patch; `./build.sh` builds `kindle_remote.uf2` using gitignored `zmk-workspace/`. FINDINGS.md 6.2a. |
 | `protocol_test/` | ESP32-S3 harness (PlatformIO, NimBLE-Arduino 1.4.x). Serial commands f/b/u/d/s, 0-9/B battery, x PnP source toggle, c clear bonds, i request long interval, ? status. Checklist in its README. |
 | `src/main.cpp`, `platformio.ini` (root) | Original ESP32-C3 sketch. Superseded; has duplicate DIS/BAS services, PnP source 0x02, deep sleep. Do not build on it. |
 | `README.md`, `HARDWARE_GUIDE.md` | ESP32-era docs with wrong enclosure size. Superseded by FINDINGS.md. |

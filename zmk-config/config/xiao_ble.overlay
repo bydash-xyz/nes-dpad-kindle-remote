@@ -1,0 +1,19 @@
+/ {
+    chosen {
+        zmk,kscan = &kscan0;
+    };
+
+    /* D-pad pads short to GND when pressed. Order sets keymap positions. */
+    kscan0: kscan {
+        compatible = "zmk,kscan-gpio-direct";
+        wakeup-source;
+        debounce-press-ms = <10>;
+        debounce-release-ms = <20>;
+        input-gpios
+            = <&xiao_d 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Right */
+            , <&xiao_d 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Left */
+            , <&xiao_d 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Up */
+            , <&xiao_d 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Down */
+            ;
+    };
+};
