@@ -12,3 +12,11 @@ git apply --check "$here/patches/0001-kindle-remote-advertising.patch" 2>/dev/nu
 west build -p auto -s app -d "$ws/build" -b xiao_ble//zmk "$@" -- -DZMK_CONFIG="$here/config"
 cp "$ws/build/zephyr/zmk.uf2" "$here/kindle_remote.uf2"
 echo "Built $here/kindle_remote.uf2"
+# Flash if the XIAO is in bootloader mode (double-tap reset)
+vol=$(ls -d /Volumes/XIAO* 2>/dev/null | head -1)
+if [ -n "$vol" ]; then
+  cp -X "$here/kindle_remote.uf2" "$vol/" 2>/dev/null || true
+  echo "Flashed to $vol"
+else
+  echo "XIAO drive not mounted; double-tap reset and copy the UF2 to it"
+fi

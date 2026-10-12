@@ -28,7 +28,7 @@
         compatible = "zmk,keymap";
 
         default_layer {
-            /*  Right       Left        Up             Down                       */
+            /*  D0 fwd     D3 back    D1 bright+     D5 tap dim / hold sleep    */
             bindings = <&kp PG_DN  &kp PG_UP  &kp C_BRI_UP  &hold_sleep C_POWER C_BRI_DN>;
         };
     };

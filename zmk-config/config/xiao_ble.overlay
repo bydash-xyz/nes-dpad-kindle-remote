@@ -10,10 +10,10 @@
         debounce-press-ms = <10>;
         debounce-release-ms = <20>;
         input-gpios
-            = <&xiao_d 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Right */
-            , <&xiao_d 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Left */
-            , <&xiao_d 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Up */
-            , <&xiao_d 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Down */
+            = <&xiao_d 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Forward */
+            , <&xiao_d 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Back */
+            , <&xiao_d 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Brightness up */
+            , <&xiao_d 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Brightness down / sleep */
             ;
     };
 };

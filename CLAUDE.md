@@ -26,8 +26,8 @@ A BLE page-turner remote for the Kindle Scribe / Colorsoft (FW 5.20.1+) that the
 - Usable volume: removable insert **35 x 32 x 7 mm** (measured). Replace with a 3D-printed **PETG** insert (not PLA). Ignore the old 50x50x20 figure in README.md / HARDWARE_GUIDE.md.
 - Layout: 401230 cell (4 x 12 x 30) long axis along the 35 mm side; XIAO (21 x 17.8) beside it across the 32 mm side (29.8 mm total, thin or no divider). USB-C slot for charging. Antenna end toward the cavity edge.
 - Battery: cut Micro JST off, verify polarity with a meter, solder to XIAO BAT pads, Kapton over the PCM. Leave charge current at 50 mA default.
-- D-pad contacts: original rubber membrane has carbon pills (100-400 ohm). Pads = one piece of 2" copper tape cut to shape (GND cross + 4 pads + 5 tails); solder 28 AWG wires to tails on the bench (never on the plastic), stick down, then knife-cut a 0.3-0.5 mm zigzag across each pad to isolate the signal half. 5 wires: D0-D3 + GND.
-- Mapping: Right D0 page forward, Left D1 page back, Up D2 bright+, Down D3 tap bright- / hold 1.5 s sleep. Up+Down together is not possible on a rocking D-pad.
+- D-pad contacts: original rubber membrane has carbon pills (100-400 ohm). Pads = one piece of 2" copper tape cut to shape (GND cross + 4 pads + 5 tails); solder 28 AWG wires to tails on the bench (never on the plastic), stick down, then knife-cut a 0.3-0.5 mm zigzag across each pad to isolate the signal half. 5 wires: D0, D1, D3, D5 + GND.
+- Mapping: Right D0 page forward, Left D3 page back, Up D1 bright+, Down D5 tap bright- / hold 1.5 s sleep. Up+Down together is not possible on a rocking D-pad.
 
 ## Firmware plan (ZMK)
 - Board `xiao_ble`; config in a separate `zmk-config` GitHub repo built by GitHub Actions; flash UF2 by double-tap reset.

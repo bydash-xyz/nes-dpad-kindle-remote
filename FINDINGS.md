@@ -207,7 +207,7 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 | Reconnect after long absence | Remote dropped the link and stopped advertising (`o`), then resumed (`a`). Offline 60 s: reconnected 0.27 s after advertising resumed. 180 s: 2.3 s. 600 s: 2.9 s. No sign of a reconnect limit within 10 min, so the Kindle keeps a background connect to the bonded device. Kindle was asked to stay awake (not confirmed). A deep-sleep remote would still reconnect, at a cost of ~0.3-3 s on the first press. |
 | Battery `< 20%` / `< 5%` | Low and critical warnings both shown on notify. |
 
-**XIAO nRF52840 + ZMK (`zmk-config/`, 2026-10-11), same Kindle on 5.20.1:** discovered and paired first try (listed as "Kindle Click 2" while the ESP32 was still bonded). Page forward/back, brightness up/down and Down-hold sleep all work, driven by jumpering D0-D3 to GND on USB power. Battery not checked yet: with no cell, BAT shows charger voltage; retest warnings with the 401230 cell.
+**XIAO nRF52840 + ZMK (`zmk-config/`, 2026-10-11), same Kindle on 5.20.1:** discovered and paired first try (listed as "Kindle Click 2" while the ESP32 was still bonded). Page forward/back, brightness up/down and Down-hold sleep all work, driven by jumpering D0-D3 to GND on USB power. Battery not checked yet: with no cell, BAT shows charger voltage; retest warnings with the 401230 cell. 2026-10-12: remapped to D0 fwd / D1 bright+ / D3 back / D5 dim+sleep and retested through the copper-tape pads; all four work after fixing bridged zigzag gaps (5.5). The `zmk-usb-logging` snippet build (separate build dir) logs every kscan event over USB serial and is the quickest way to tell a pad fault from a Kindle-side fault.
 
 **Why the remote cannot wake the Kindle (firmware analysis, 2026-10-08): by design, not a bug in our implementation.**
 * `input_manager` handles the remote's `KEY_POWER` (`0x0030`) as the action `system.sleep` (`categories.json`, `dispatch_on: ["press"]`). The handler at `0x21294` calls powerd proxy vtable slot `0x1c`. The vtable at `0x3bc70` maps that slot to `PowerManagementServiceProxy::setPowerButtonIfActiveAsync(1)`. The name says it acts only when the device is active, so it is one-way sleep, not a toggle. The toggle `setPowerButtonAsync` is slot `0x18` and is never called.
@@ -267,18 +267,21 @@ Test-bench notes: the S3 board's serial is a WCH CH343 (`/dev/cu.usbmodem...`), 
 * Cut a **0.3-0.5 mm zigzag gap** between signal and GND under each pill with a fresh #11 blade.
 * **Solder on the bench, not on the insert:** tin the tape tails and solder 28 AWG wire (stranded preferred) on a ceramic tile, then peel and stick; route wires through ~1.2 mm holes to the pocket.
 * Check each pad: open with no press, ~100-400 ohm when pressed.
+* Bridged gap symptom (2026-10-12): with the board powered, a pad pin reads well under 3.3 V to GND (seen: 0.x V on D0/D1) instead of 3.3 V from the pull-up, and ZMK logs no events for that pin. Cause was an incomplete zigzag cut. Recut, clear copper slivers from the gap, and recheck open-circuit before reconnecting.
 * Keep the insert top at the original height minus tape thickness so the D-pad is not pre-pressed.
 * Electrical: internal pull-ups (~13 kohm on nRF52) read a pressed pad at well under 0.1 V; debounce 10-20 ms. Alternative: thin copper-clad FR4 with knife-cut pads. Durable v2: JLCPCB 0.8 mm ENIG interdigitated pads.
-* Five wires total: D0-D3 (four directions) + GND.
+* Five wires total: D0, D1, D3, D5 (four directions) + GND.
 
 ### 5.6 D-pad button mapping
 | D-pad | XIAO pin | Action | Key |
 |---|---|---|---|
 | Right | D0 | Page forward | `KEY_PAGEDOWN` (HID 0x4E) |
-| Left | D1 | Page back | `KEY_PAGEUP` (HID 0x4B) |
-| Up | D2 | Brightness up | Consumer 0x006F |
-| Down (tap) | D3 | Brightness down | Consumer 0x0070 |
-| Down (hold ~1.5 s) | D3 | Kindle sleep | Consumer 0x0030 (`KEY_POWER`) |
+| Left | D3 | Page back | `KEY_PAGEUP` (HID 0x4B) |
+| Up | D1 | Brightness up | Consumer 0x006F |
+| Down (tap) | D5 | Brightness down | Consumer 0x0070 |
+| Down (hold ~1.5 s) | D5 | Kindle sleep | Consumer 0x0030 (`KEY_POWER`) |
+
+Pins changed 2026-10-12 (was D0-D3 in order). Keymap position order stays forward, back, up, down; the overlay maps D0, D3, D1, D5 to those positions.
 
 * The official remote has **four buttons, five actions**: sleep is a long press of both side buttons.
 * The earlier "hold Up + Down" plan is likely impossible: a D-pad rocks on a center pivot, so opposite directions cannot close together. Hold-Down-to-sleep is used instead. Alternatives: hold a diagonal combo, or omit sleep (Kindle auto-sleeps).
