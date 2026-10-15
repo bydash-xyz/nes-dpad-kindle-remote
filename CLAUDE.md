@@ -3,10 +3,10 @@
 Read this first. `FINDINGS.md` is the source of truth for details; keep it updated when decisions or test results change.
 
 ## Goal
-A BLE page-turner remote for the Kindle Scribe / Colorsoft (FW 5.20.1+) that the stock Kindle accepts as an official "Amazon Kindle Remote", built inside a Nintendo NES-style D-pad gashapon keychain. The 4-way D-pad must stay functional.
+A BLE page-turner remote compatible with Kindle Scribe / Colorsoft (FW 5.20.1+) that pairs as a native page turner, built inside a Nintendo NES-style D-pad gashapon keychain. The 4-way D-pad must stay functional.
 
 ## Current status (2026-10-08)
-- Firmware reverse engineering: done (FINDINGS.md sections 2-3).
+- Protocol compatibility verification: done (FINDINGS.md sections 2-3).
 - Platform decided: **Seeed XIAO nRF52840 (plain) + ZMK firmware**. The ESP32 path is superseded for the final build.
 - Parts ordered: XIAO nRF52840 3-pack, 401230 100 mAh LiPo 2-pack (arrives ~Oct 16), Kirecoo 2" copper tape (conductive adhesive), polyimide/Kapton tape.
 - Done: **protocol validated on ESP32-S3** with `protocol_test/` (2026-10-08): discovery, pairing, page fwd/back, brightness, sleep, battery warnings all pass. Remote cannot wake the Kindle. Results in FINDINGS.md 4.1.

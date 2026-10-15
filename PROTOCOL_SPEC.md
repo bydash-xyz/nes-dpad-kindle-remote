@@ -1,16 +1,14 @@
-# Kindle Scribe / Colorsoft Firmware Reverse Engineering Report
+# Kindle Bluetooth Remote Interoperability Specification
 
-## Target Firmware
-- **Bundle File:** `update_kindle_scribe_colorsoft_1st_generation_5.20.1.bin`
-- **Firmware Version:** 5.20.1 (Build 4893920050)
-- **Target Platform:** `Platcs8` (Kindle Scribe Colorsoft 2025 platform, Device IDs: 4VX, 4PF, 4PH, 4F9, 4FB, 46P)
-- **Extracted Rootfs:** Linux kernel 6.6.77-lab126, 32-bit ARM (ARMhf) Linux OS
+## Target Platform
+- **Reference Firmware:** Kindle OS 5.20.1+
+- **Compatible Hardware:** Kindle Scribe, Kindle Colorsoft, Kindle Paperwhite (12th Gen+)
 
 ---
 
 ## 1. Executive Summary
 
-Amazon introduced native Bluetooth Page Turner remote support in firmware version 5.20.1 for the Kindle Scribe and Kindle Colorsoft (and newer Kindle devices). By analyzing the update package and reverse-engineering the core Bluetooth daemon (`acsbtfd`), the input management subsystem (`input_manager`), and the user interface (`pillowd` / React Native), we extracted the exact requirements necessary to build an ESP32-based Bluetooth remote that works natively with stock, un-jailbroken Kindles:
+Kindle OS 5.20.1+ includes native Bluetooth Page Turner remote support. This document specifies the exact Bluetooth Low Energy (BLE) profiles, identification data, and HID usage codes required for a custom wireless remote to pair and interact natively with stock Kindle devices without software modifications.
 
 1. **Vendor ID & Product ID Validation:**
    - **Vendor ID (VID):** `0x0171` (Amazon.com, Inc.)

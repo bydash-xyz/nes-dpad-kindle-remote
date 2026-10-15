@@ -1,6 +1,6 @@
-# Kindle D-Pad Remote (Amazon Kindle Remote Replica)
+# Kindle Compatible D-Pad Remote
 
-A custom miniature Bluetooth Low Energy (BLE) page-turner remote for Amazon Kindle (Kindle Scribe, Colorsoft, Paperwhite 12th Gen, and Kindle devices running firmware 5.20.1+). Built using a **Seeed Studio XIAO nRF52840** running **ZMK Firmware**, designed to fit inside a Nintendo NES-style D-pad gashapon keychain capsule.
+A custom miniature Bluetooth Low Energy (BLE) page-turner remote compatible with Amazon Kindle (Kindle Scribe, Colorsoft, Paperwhite 12th Gen, and Kindle devices running firmware 5.20.1+). Built using a **Seeed Studio XIAO nRF52840** running **ZMK Firmware**, designed to fit inside a Nintendo NES-style D-pad gashapon keychain capsule.
 
 ---
 
@@ -10,7 +10,7 @@ A custom miniature Bluetooth Low Energy (BLE) page-turner remote for Amazon Kind
 
 ## Overview & Architecture
 
-Kindle firmware 5.20.1+ natively supports the official "Amazon Kindle Remote" accessory. Through clean-room protocol analysis of the BLE exchange, this project implements the required BLE discovery and HID profiles so the Kindle accepts the controller natively with zero Kindle jailbreaking or OS modifications.
+Kindle firmware 5.20.1+ supports wireless page-turner accessories. This project implements the standard BLE services and HID specifications required for seamless interoperability with stock Kindle devices without jailbreaking or modifications.
 
 - **Microcontroller:** Seeed Studio XIAO nRF52840 (plain, non-Sense)
 - **Firmware:** [ZMK Firmware](https://zmk.dev/) with Kindle advertising data patch
@@ -20,9 +20,9 @@ Kindle firmware 5.20.1+ natively supports the official "Amazon Kindle Remote" ac
 
 ---
 
-## BLE Protocol Requirements
+## Compatibility & BLE Specifications
 
-To be accepted natively by the Kindle Bluetooth stack (`acsbtfd` / `input_manager`):
+To pair and operate with compatible Kindle e-readers:
 
 1. **Advertising Data (AD Type `0xFF`):** Must carry Amazon's Manufacturer Specific Data `0x0171` with Product ID `0x0443` in the primary advertising packet (`71 01 04 43`).
 2. **Device Information Service (`0x180A`):**
@@ -83,11 +83,10 @@ This generates `zmk-config/kindle_remote.uf2`.
 ## Repository Map
 
 - `zmk-config/`: Production ZMK configuration, keymap, and advertising patch.
-- `protocol_test/`: Standalone PlatformIO harness used on ESP32-S3 to reverse-engineer and validate the Kindle BLE protocol.
+- `protocol_test/`: Standalone PlatformIO harness used on ESP32-S3 to test and validate BLE compatibility.
 - `FINDINGS.md`: Complete hardware research log, protocol benchmarks, power consumption budget, and test results.
-- `REVERSE_ENGINEERING.md`: Architectural findings and clean-room protocol analysis of the Kindle OS Bluetooth stack.
+- `REVERSE_ENGINEERING.md`: Architectural findings and interoperability specifications for Kindle OS input management.
 - `legacy/`: Superseded ESP32-C3 firmware prototype and initial hardware guide.
-
 ---
 
 ## License
