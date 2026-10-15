@@ -85,7 +85,7 @@ This generates `zmk-config/kindle_remote.uf2`.
 - `zmk-config/`: Production ZMK configuration, keymap, and advertising patch.
 - `protocol_test/`: Standalone PlatformIO harness used on ESP32-S3 to test and validate BLE compatibility.
 - `FINDINGS.md`: Complete hardware research log, protocol benchmarks, power consumption budget, and test results.
-- `REVERSE_ENGINEERING.md`: Architectural findings and interoperability specifications for Kindle OS input management.
+- `PROTOCOL_SPEC.md`: Architectural findings and interoperability specifications for Kindle OS input management.
 - `legacy/`: Superseded ESP32-C3 firmware prototype and initial hardware guide.
 ---
 
