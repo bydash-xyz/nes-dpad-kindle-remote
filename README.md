@@ -98,7 +98,6 @@ Firmware builds use [ZMK Firmware](https://zmk.dev/) on top of Zephyr RTOS.
 - `HARDWARE.md`: Bill of materials, hardware components, tools, and assembly instructions.
 - `PROTOCOL_SPEC.md`: Architectural findings and interoperability specifications for Kindle OS input management.
 - `FINDINGS.md`: Complete hardware research log, protocol benchmarks, power consumption budget, and test results.
-- `legacy/`: Superseded ESP32-C3 firmware prototype and initial hardware guide.
 ---
 
 ## License

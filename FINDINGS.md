@@ -407,12 +407,9 @@ Not needed: ESP32 boards, 502030 / 601120 cells, SWD programmer (only for a futu
 
 | File | Description |
 |---|---|
+| `HARDWARE.md` | Bill of materials, hardware components, tools, and assembly instructions. |
 | `PROTOCOL_SPEC.md` | In-depth technical breakdown and specifications for Kindle OS input management. |
 | `README.md` | Overview, ZMK build/flash guide, and safety instructions. |
 | `zmk-config/` | Production ZMK configuration, keymap, and advertising patch. |
-| `protocol_test/` | ESP32-S3 protocol test harness (NimBLE 1.4): serial-driven page/brightness/sleep/battery commands, PnP source toggle, connection-parameter logging. Fixes duplicate DIS/BAS services present in `legacy/src/main.cpp`. See its README for the test checklist. |
-| `legacy/HARDWARE_GUIDE.md` | ESP32-era BOM and wiring; **superseded by sections 5 and 8**. |
-| `legacy/src/main.cpp` | ESP32 NimBLE implementation; **superseded by ZMK (section 6)**. If reused, change PnP source to `0x01` and remove deep sleep between presses. |
-| `legacy/platformio.ini` | PlatformIO config for the legacy ESP32 path (superseded). |
-| `legacy/FINDINGS.orig.md` | Copy of this document before the 2026-10-08 revision. |
+| `protocol_test/` | ESP32-S3 protocol test harness (NimBLE 1.4): serial-driven page/brightness/sleep/battery commands, PnP source toggle, connection-parameter logging. |
 | `local_artifacts/` | Quarantined local firmware updates and extracted analysis images (gitignored). |

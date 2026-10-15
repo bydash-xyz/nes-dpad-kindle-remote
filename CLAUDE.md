@@ -43,7 +43,6 @@ A BLE page-turner remote compatible with Kindle Scribe / Colorsoft (FW 5.20.1+) 
 | `PROTOCOL_SPEC.md` | Protocol analysis and clean-room specification of Kindle BLE input management. |
 | `zmk-config/` | Production ZMK config + Kindle advertising patch; `./build.sh` builds `kindle_remote.uf2`. |
 | `protocol_test/` | ESP32-S3 test harness (PlatformIO, NimBLE-Arduino 1.4.x) for Kindle BLE validation. |
-| `legacy/` | Superseded ESP32-C3 firmware prototype, original findings draft, and obsolete hardware guide. |
 | `local_artifacts/` | Quarantined local proprietary firmware artifacts (gitignored). |
 ## Next steps (in order)
 1. Build and flash `protocol_test/` on the ESP32-S3 (`cd protocol_test && pio run -t upload && pio device monitor`). If serial is silent, enable `-DARDUINO_USB_CDC_ON_BOOT=1`. Fix any compile errors (code was API-checked against NimBLE-Arduino 1.4.3 but never compiled).
