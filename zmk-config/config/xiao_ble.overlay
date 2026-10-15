@@ -9,11 +9,11 @@
         wakeup-source;
         debounce-press-ms = <10>;
         debounce-release-ms = <20>;
-        input-gpios
-            = <&xiao_d 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Forward */
-            , <&xiao_d 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Back */
-            , <&xiao_d 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Brightness up */
-            , <&xiao_d 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Brightness down / sleep */
-            ;
+    input-gpios
+        = <&xiao_d 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Forward (0) */
+        , <&xiao_d 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Brighter (1) */
+        , <&xiao_d 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Dimmer / Sleep (3) */
+        , <&xiao_d 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Backward (5) */
+        ;
     };
 };

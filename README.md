@@ -1,91 +1,95 @@
-> **Superseded (2026-10-08):** this is the ESP32-era document with an incorrect enclosure size. See `CLAUDE.md` and `FINDINGS.md` for the current plan (XIAO nRF52840 + ZMK, 35 x 32 x 7 mm insert).
+# Kindle D-Pad Remote (Amazon Kindle Remote Replica)
 
-# ESP32 Kindle Scribe / Colorsoft Bluetooth Remote
-
-Custom miniature Bluetooth Low Energy (BLE) page-turner remote for Amazon Kindle (Kindle Scribe, Colorsoft, Paperwhite 12th Gen, and FW 5.20.1+), designed to fit inside a Nintendo Gashapon NES Controller D-pad capsule toy enclosure (`50 mm × 50 mm × 20 mm`).
+A custom miniature Bluetooth Low Energy (BLE) page-turner remote for Amazon Kindle (Kindle Scribe, Colorsoft, Paperwhite 12th Gen, and Kindle devices running firmware 5.20.1+). Built using a **Seeed Studio XIAO nRF52840** running **ZMK Firmware**, designed to fit inside a Nintendo NES-style D-pad gashapon keychain capsule.
 
 ---
 
-## Key Reverse-Engineering Discoveries
-
-By extracting and reverse-engineering the Amazon firmware bundle `update_kindle_scribe_colorsoft_1st_generation_5.20.1.bin`, we identified the internal requirements for native Kindle remote compatibility:
-
-1. **Native Allowlist & Match Criteria (`devices.json` & `input_manager`):**
-   - The Kindle OS admits devices into the `page_turner` category only if they match:
-     - **Vendor ID (VID):** `0x0171` (Amazon.com, Inc.)
-     - **Product ID (PID):** `0x0443` ("Amazon Kindle Remote")
-   - Any device not presenting this VID/PID tuple is logged as `device rejected (not in allowlist)` and ignored for page turning.
-2. **Device Discovery & Classification (`acsbtfd` / `BtDiscoveryFilter`):**
-   - The Bluetooth stack filters for devices exposing the **Human Interface Device** service (`0x1812`) and **Device Information Service** (`0x180A`).
-   - The PnP ID characteristic (`0x2A50`) must report VID `0x0171` and PID `0x0443`.
-   - The Firmware Revision characteristic (`0x2A26`) is explicitly queried by `acsbtfd` to display the remote firmware version.
-   - The Battery Service (`0x180F`) reports the remote battery percentage. Low battery warnings trigger at `< 20%`, critical warnings at `< 5%`.
-3. **HID Input Mappings (`categories.json`):**
-   - **Page Forward:** `KEY_PAGEDOWN` (HID Keyboard Usage `0x4E`)
-   - **Page Backward:** `KEY_PAGEUP` (HID Keyboard Usage `0x4B`)
-   - **Brightness Up:** Consumer Control Usage `0x006F` (`display.brightness_up`)
-   - **Brightness Down:** Consumer Control Usage `0x0070` (`display.brightness_down`)
-   - **Sleep / Power:** Consumer Control Usage `0x0030` (`system.sleep`)
-   - **Orientation Swap:** Kindle automatically swaps forward and back buttons when inverted 180°.
-
-Detailed technical breakdown and disassembled routines: [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md)
+> **Disclaimer:** This project is an independent open-source hardware and software project created strictly for personal interoperability and educational purposes. It is **not affiliated with, sponsored by, or endorsed by Amazon.com, Inc.** All trademarks, product names, and company names belong to their respective owners.
 
 ---
 
-## Hardware Architecture
+## Overview & Architecture
 
-### Recommended Bill of Materials (BOM)
+Kindle firmware 5.20.1+ natively supports the official "Amazon Kindle Remote" accessory. Through clean-room protocol analysis of the BLE exchange, this project implements the required BLE discovery and HID profiles so the Kindle accepts the controller natively with zero Kindle jailbreaking or OS modifications.
 
-| Component | Part / Model | Dimensions | Notes |
+- **Microcontroller:** Seeed Studio XIAO nRF52840 (plain, non-Sense)
+- **Firmware:** [ZMK Firmware](https://zmk.dev/) with Kindle advertising data patch
+- **Battery:** 3.7V 100 mAh LiPo (401230 cell) with onboard battery reporting
+- **Enclosure:** Gashapon NES D-pad keychain capsule (internal cavity ~35 × 32 × 7 mm with 3D-printed PETG insert)
+- **Contacts:** Direct carbon pill contacts over copper tape pads
+
+---
+
+## BLE Protocol Requirements
+
+To be accepted natively by the Kindle Bluetooth stack (`acsbtfd` / `input_manager`):
+
+1. **Advertising Data (AD Type `0xFF`):** Must carry Amazon's Manufacturer Specific Data `0x0171` with Product ID `0x0443` in the primary advertising packet (`71 01 04 43`).
+2. **Device Information Service (`0x180A`):**
+   - **PnP ID (`0x2A50`):** Vendor ID `0x0171`, Product ID `0x0443`, Version `0x0100`, Vendor ID Source `0x01` (Bluetooth SIG).
+   - **Firmware Revision (`0x2A26`):** `"1.0.0"`
+   - **Manufacturer Name (`0x2A29`):** `"Amazon"`
+   - **Model Number (`0x2A24`):** `"Kindle Remote"`
+3. **HID Service (`0x1812`):**
+   - **Page Down / Next:** Keyboard usage `0x4E`
+   - **Page Up / Previous:** Keyboard usage `0x4B`
+   - **Brightness Up:** Consumer usage `0x006F`
+   - **Brightness Down:** Consumer usage `0x0070`
+   - **Sleep / System Power:** Consumer usage `0x0030`
+4. **Battery Service (`0x180F`):** Standard battery level notification (`0x2A19`). The Kindle displays battery percentage under Settings > Accessories, warning at `< 20%` and critically at `< 5%`.
+
+---
+
+## D-Pad Key Mapping
+
+| Pad / Pin | Function | Kindle HID Event | Behavior |
 |---|---|---|---|
-| **Enclosure** | Nintendo Capsule Toy NES Controller D-Pad Keypad | `50 × 50 × 20 mm` | Sourced from eBay / Japan Gashapon |
-| **Microcontroller** | **Seeed Studio XIAO ESP32-C3** | `21.0 × 17.5 × 3.5 mm` | BLE 5.0, ~44 µA deep sleep, onboard LiPo charger |
-| **Battery** | 3.7V LiPo Pouch Cell (Model **502030**) | `30.0 × 20.0 × 5.0 mm` | ~250–300 mAh capacity (~7 months standby) |
-| **Switches** | 4× Low-profile SMD Tactile Switches | `3.0 × 4.0 × 2.0 mm` | Positioned under D-pad arms |
-| **Carrier PCB** | Custom perfboard / prototype substrate | `35 × 35 × 1.0 mm` | Holds switches under silicone membrane |
-
-Hardware wiring schematic, pinouts, and step-by-step mechanical guide: [HARDWARE_GUIDE.md](HARDWARE_GUIDE.md)
+| **D0** (Right) | Page Forward | `KEY_PAGEDOWN` (`0x4E`) | Tap to turn page |
+| **D5** (Left) | Page Backward | `KEY_PAGEUP` (`0x4B`) | Tap to turn page back |
+| **D1** (Up) | Brightness Up | Consumer `0x006F` | Tap or hold to increase brightness |
+| **D3** (Down) | Brightness Down / Sleep | Consumer `0x0070` / `0x0030` | Tap: Brightness down. Hold 1.5s: Kindle sleep |
 
 ---
 
-## D-Pad Control Layout
+## Building the Firmware
 
+Firmware builds are powered by ZMK and Zephyr. A local build script is provided in `zmk-config/`.
+
+### Prerequisites
+- POSIX shell with Python 3, `west`, and CMake (or Docker/GitHub Actions)
+- Arm GNU Toolchain (`arm-none-eabi-gcc`)
+
+### Local Build
+```bash
+cd zmk-config
+./build.sh
 ```
-               [ UP ]
-           Brightness Up
-                 ▲
-   [ LEFT ]      │      [ RIGHT ]
-   Page Back ◄───┼───► Page Forward
-                 │
-                 ▼
-              [ DOWN ]
-          Brightness Down
+This generates `zmk-config/kindle_remote.uf2`.
 
-  [ HOLD UP + DOWN for 1.5s ]  -->  Kindle Sleep / Wake
-```
+### Flashing
+1. Connect the Seeed XIAO nRF52840 via USB-C.
+2. Double-tap the onboard reset button to enter the UF2 bootloader (mounted as `XIAO-SENSE` or `XIAO-NRF52`).
+3. Copy `kindle_remote.uf2` to the drive. The board flashes and reboots automatically.
 
 ---
 
-## Building and Flashing
+## Hardware & Assembly Safety
 
-### Option 1: PlatformIO (Recommended)
-1. Install PlatformIO in VS Code or CLI.
-2. In this directory, run:
-   ```bash
-   pio run -e seeed_xiao_esp32c3 -t upload
-   ```
-
-### Option 2: Arduino IDE
-1. Install **ESP32 by Espressif Systems** via Board Manager.
-2. Install **NimBLE-Arduino by h2zero** via Library Manager.
-3. Select board: **XIAO_ESP32C3**.
-4. Open `src/main.cpp` (or rename to `.ino`) and click **Upload**.
+- **LiPo Battery Safety:** When soldering pouch cells directly to the board, always insulate the PCM and battery leads with Kapton tape. Never short battery terminals.
+- **Enclosure Fit:** Ensure battery leads and switch wiring do not pinch against the PETG carrier walls or casing screws.
 
 ---
 
-## Pairing with your Kindle
+## Repository Map
 
-1. Power on the remote (or wake via any button press).
-2. On your Kindle (FW 5.20.1+), open **Settings > Wi-Fi & Bluetooth > Bluetooth Devices**.
-3. Put Kindle in pairing mode; select **Amazon Kindle Remote**.
-4. Once paired, the Kindle popup will announce: `Amazon Kindle Remote connected` and unlock remote page turn options under **Settings > Accessories**.
+- `zmk-config/`: Production ZMK configuration, keymap, and advertising patch.
+- `protocol_test/`: Standalone PlatformIO harness used on ESP32-S3 to reverse-engineer and validate the Kindle BLE protocol.
+- `FINDINGS.md`: Complete hardware research log, protocol benchmarks, power consumption budget, and test results.
+- `REVERSE_ENGINEERING.md`: Architectural findings and clean-room protocol analysis of the Kindle OS Bluetooth stack.
+- `legacy/`: Superseded ESP32-C3 firmware prototype and initial hardware guide.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

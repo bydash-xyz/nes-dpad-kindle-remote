@@ -1,11 +1,21 @@
-# Amazon firmware artifacts (large, proprietary; keep local only)
+# Quarantined local artifacts (proprietary Amazon firmware, dumps, and extracts)
+local_artifacts/
 *.bin
 extracted_fw/
 extracted/
+rootfs_filelist.txt
 
 # PlatformIO
 .pio/
 .vscode/
+# Agent and editor settings
+.claude/
+.omp/
+.idea/
+*.local.json
+*.env*
+*.dump
+*.disasm
 
 # Test-bench session files
 protocol_test/tools/serial.log
