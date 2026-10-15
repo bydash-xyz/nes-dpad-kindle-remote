@@ -4,7 +4,8 @@
 set -e
 
 here=$(cd "$(dirname "$0")" && pwd)
-ws="$here/zmk-workspace"
+ws="$here/../zmk-workspace"
+ZMK_REV=4dd95d78  # ZMK main revision the patch was made against (FINDINGS 6.2a)
 
 echo "Creating ZMK workspace at: $ws"
 mkdir -p "$ws"
@@ -19,11 +20,13 @@ fi
 pip install --upgrade pip
 pip install west
 
-# 2. Initialize ZMK repository
+# 2. ZMK at the pinned revision; west topdir is zmk/ (build.sh runs from there)
 if [ ! -d "zmk" ]; then
-  echo "Initializing ZMK repository..."
-  west init -m https://github.com/zmkfirmware/zmk zmk
+  echo "Cloning ZMK at $ZMK_REV..."
+  git clone https://github.com/zmkfirmware/zmk zmk
   cd zmk
+  git checkout "$ZMK_REV"
+  west init -l app
   west update
   west zephyr-export
   pip install -r zephyr/scripts/requirements.txt
@@ -61,4 +64,4 @@ fi
 
 echo ""
 echo "=== ZMK Workspace Ready ==="
-echo "You can now run ./zmk-config/build.sh to build kindle_remote.uf2"
+echo "Now run ./build.sh in zmk-config/ to build kindle_remote.uf2"

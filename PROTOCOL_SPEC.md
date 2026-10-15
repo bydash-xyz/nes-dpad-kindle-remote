@@ -122,7 +122,7 @@ The daemon classifies devices into internal policies:
 - Type 0: `btfd::AudioSinkPolicy` (Bluetooth audio, A2DP UUID `0x110B`)
 - Type 1: `btfd::BleHidPageTurnerPolicy` (Page Turner Remote, VID `0x0171`, PID `0x0443`)
 
-**Matching Criteria:**
+**Matching Criteria (determined by testing against a Kindle, not from disassembly):**
 The discovery filter examines incoming advertising packets:
 - It checks AD `0xFF` (Manufacturer Specific Data) for Amazon's company ID `0x0171` (`71 01`) followed by PID `0x0443` (`04 43`).
 - HID Service UUID `0x1812` alone is rejected without this manufacturer payload.

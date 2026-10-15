@@ -29,7 +29,7 @@ This document details the exact hardware components, wiring materials, consumabl
 | **Hobby Knife** | Precision knife with fresh #11 blade | Used to cut the 0.3–0.5 mm zigzag gap across copper pads to isolate signal from ground. |
 | **Flush Cutters** | Precision wire flush cutters | For trimming component leads and wire ends flush to pads. |
 
-> *Note: The Amazon links above are short referral links formatted identically to sister project hardware specifications. Any seller's equivalent part or tool works equally well.*
+> *Note: The Amazon links above are affiliate links. Any equivalent part or tool from any seller works equally well.*
 
 ---
 

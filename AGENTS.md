@@ -1,0 +1,58 @@
+# Kindle D-pad remote — project context for coding agents
+
+Read this first. `FINDINGS.md` is the source of truth for details; keep it updated when decisions or test results change.
+
+## Goal
+A BLE page-turner remote compatible with Kindle Scribe / Colorsoft (FW 5.20.1+) that pairs as a native page turner, built inside a Nintendo NES-style D-pad gashapon keychain. The 4-way D-pad must stay functional.
+
+## Current status (2026-10-08)
+- Protocol compatibility verification: done (FINDINGS.md sections 2-3).
+- Platform decided: **Seeed XIAO nRF52840 (plain) + ZMK firmware**. The ESP32 path is superseded for the final build.
+- Parts ordered: XIAO nRF52840 3-pack, 401230 100 mAh LiPo 2-pack (arrives ~Oct 16), Kirecoo 2" copper tape (conductive adhesive), polyimide/Kapton tape.
+- Done: **protocol validated on ESP32-S3** with `protocol_test/` (2026-10-08): discovery, pairing, page fwd/back, brightness, sleep, battery warnings all pass. Remote cannot wake the Kindle. Results in FINDINGS.md 4.1.
+- In progress: ZMK build in `zmk-config/` (local, `build.sh`), flashed to XIAO 2026-10-11; pairs with the Kindle and all keys work (FINDINGS 4.1). Cell arrived and is soldered to the BAT pads.
+- Not started: PETG insert CAD, copper-tape pad build, current measurement.
+
+## Kindle protocol (must match exactly)
+- **Advertising must carry manufacturer data AD `0xFF` = `71 01 04 43`** (company 0x0171 LE, PID 0x0443 big-endian) in the primary packet; without it the Kindle never lists the device (HID UUID alone is rejected). Name `Amazon Kindle Remote` (scan response OK); HID `0x1812` UUID.
+- DIS PnP ID `0x2A50`: VID `0x0171`, PID `0x0443`, version `0x0100`, little-endian. Vendor-ID source byte `0x01` (Bluetooth SIG), confirmed working.
+- DIS firmware revision `0x2A26` = "1.0.0" (read by `acsbtfd`), manufacturer "Amazon", model "Kindle Remote".
+- Battery Service `0x180F` / `0x2A19` read+notify (Kindle warns < 20%, critical < 5%).
+- Keys: keyboard `0x4E` PageDown (forward), `0x4B` PageUp (back); consumer `0x006F` bright+, `0x0070` bright-, `0x0030` power/sleep.
+- Allowlist evidence: Kindle OS `/etc/input_manager/devices.json`, `categories.json` (see `PROTOCOL_SPEC.md`).
+- Stay connected. Do not deep-sleep between presses (drops the link, loses the wake press, reconnect delay).
+
+## Hardware decisions
+- Usable volume: removable insert **35 x 32 x 7 mm** (measured). Replace with a 3D-printed **PETG** insert (not PLA). Ignore old 50x50x20 estimates in legacy notes.
+- Layout: 401230 cell (4 x 12 x 30) long axis along the 35 mm side; XIAO (21 x 17.8) beside it across the 32 mm side (29.8 mm total, thin or no divider). USB-C slot for charging. Antenna end toward the cavity edge.
+- Battery: cut Micro JST off, verify polarity with a meter, solder to XIAO BAT pads, Kapton over the PCM. Leave charge current at 50 mA default.
+- D-pad contacts: original rubber membrane has carbon pills (100-400 ohm). Pads = one piece of 2" copper tape cut to shape (GND cross + 4 pads + 5 tails); solder 28 AWG wires to tails on the bench (never on the plastic), stick down, then knife-cut a 0.3-0.5 mm zigzag across each pad to isolate the signal half. 5 wires: D0, D1, D3, D5 + GND.
+- Default mapping (pins user-configurable in `zmk-config/config/xiao_ble.overlay`; entry order sets keymap position): D0 page forward, D1 bright+, D3 tap dim / hold 1.5 s sleep, D5 page back. Up+Down together is not possible on a rocking D-pad.
+
+## Firmware plan (ZMK)
+- Board `xiao_ble`; config in a separate `zmk-config` GitHub repo built by GitHub Actions; flash UF2 by double-tap reset.
+- Draft `.conf`, keymap (hold-tap `hold_sleep`) and QSPI flash deep-power-down notes are in FINDINGS.md section 6. Option names are unverified against the ZMK version in use; check before building.
+- Keep `CONFIG_ZMK_SLEEP=n` or a long timeout (>= 30 min).
+- Watch idle current: onboard P25Q16H flash must be in deep power-down; QSPI CSN (P0.25) needs pull-up in the sleep pinctrl state or current jumps to ~4 mA.
+- Battery target: 30-50 uA connected idle gives ~2-3 months on ~80 mAh usable.
+
+## Repository map
+| Path | Notes |
+|---|---|
+| `README.md` | Public project documentation and overview. |
+| `FINDINGS.md` | Full findings, decisions, power budget, test results (section 4.1). |
+| `HARDWARE.md` | Bill of materials, tools, assembly notes. |
+| `PROTOCOL_SPEC.md` | Protocol analysis and clean-room specification of Kindle BLE input management. |
+| `zmk-config/` | Production ZMK config + Kindle advertising patch; `./setup_workspace.sh` once, then `./build.sh` builds `kindle_remote.uf2`. |
+| `protocol_test/` | ESP32-S3 test harness (PlatformIO, NimBLE-Arduino 1.4.x) for Kindle BLE validation. |
+| `local_artifacts/` | Quarantined local proprietary firmware artifacts (gitignored). |
+
+## Next steps (in order)
+1. Check the battery % ZMK reports to the Kindle against the cell voltage measured with a meter.
+2. Measure membrane pill positions; check opposite directions cannot close together.
+3. Design the PETG insert (pad recesses, ~1.2 mm wire holes, battery/XIAO pocket, USB-C slot).
+4. Build the copper-tape pads; assemble; measure connected-idle current and fix flash power-down if high.
+
+## Working conventions
+- Keep answers and docs concise; no emoji.
+- Prefer editing FINDINGS.md over creating new docs; the superseded ESP32-C3 prototype was removed from the tree (still in git history).

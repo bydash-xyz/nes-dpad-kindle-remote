@@ -42,12 +42,16 @@ To pair and operate with compatible Kindle e-readers:
 
 ## D-Pad Key Mapping
 
+Default wiring (each pad shorts its pin to GND; internal pull-ups, no resistors needed):
+
 | Pad / Pin | Function | Kindle HID Event | Behavior |
 |---|---|---|---|
 | **D0** (Right) | Page Forward | `KEY_PAGEDOWN` (`0x4E`) | Tap to turn page |
 | **D5** (Left) | Page Backward | `KEY_PAGEUP` (`0x4B`) | Tap to turn page back |
 | **D1** (Up) | Brightness Up | Consumer `0x006F` | Tap or hold to increase brightness |
 | **D3** (Down) | Brightness Down / Sleep | Consumer `0x0070` / `0x0030` | Tap: Brightness down. Hold 1.5s: Kindle sleep |
+
+The pins are user-configurable. To use different pins, edit `input-gpios` in `zmk-config/config/xiao_ble.overlay` (any free XIAO pin `D0`-`D10`, e.g. `<&xiao_d 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>`). Keep the entry order (forward, brightness up, dim/sleep, back), because the keymap `bindings` in `xiao_ble.keymap` follow that order; edit the bindings to change what each position sends.
 
 ---
 
@@ -82,7 +86,7 @@ Firmware builds use [ZMK Firmware](https://zmk.dev/) on top of Zephyr RTOS.
 ## Known Behaviors & Limitations
 
 - **Kindle Wake:** The remote cannot wake a sleeping Kindle. Kindle OS 5.20.1 power management does not designate page-turner virtual input devices as wakeup sources. Wake the device with its physical power button.
-- **Battery Reporting:** Battery level reporting over BAS is implemented in firmware, but hardware ADC calibration requires the connected LiPo cell to be attached.
+- **Battery Reporting:** The Kindle's low (< 20%) and critical (< 5%) warnings were verified using simulated battery levels sent from the ESP32 test harness. The ZMK build reports the XIAO's real cell level through the same Battery Service.
 
 ---
 
@@ -95,6 +99,7 @@ Firmware builds use [ZMK Firmware](https://zmk.dev/) on top of Zephyr RTOS.
 ## Repository Map
 
 - `zmk-config/`: Production ZMK configuration, keymap, and advertising patch.
+- `protocol_test/`: ESP32-S3 PlatformIO harness used to validate the protocol against a Kindle before the ZMK build.
 - `HARDWARE.md`: Bill of materials, hardware components, tools, and assembly instructions.
 - `PROTOCOL_SPEC.md`: Architectural findings and interoperability specifications for Kindle OS input management.
 - `FINDINGS.md`: Complete hardware research log, protocol benchmarks, power consumption budget, and test results.
