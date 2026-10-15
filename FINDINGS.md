@@ -171,7 +171,7 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 | **Manufacturer Data (AD `0xFF`)** | `71 01 04 43` (company `0x0171` LE16, then PID `0x0443` **big-endian**) in the primary packet | **Required.** The only way `acsbtfd` classifies a device as page turner (see note below) |
 | **Advertised Services** | `0x1812` (HID) in the primary advertising packet; `0x180F`, `0x180A` exposed via GATT | Standard HOGP; does NOT trigger page-turner discovery by itself |
 
-**Discovery filter (verified by disassembly, 2026-10-08).** `BtDiscoveryFilter::Classify` (`acsbtfd` `0x22574`) has two tables: VID/PID `{0x0171, 0x0443, type 1}` (built at `0x1a1e4`) and UUID `{0x110B, type 0}` only (A2DP). There is no `0x1812` entry, so HID UUID alone is rejected. VID/PID come from `aceBT_getEirManfInfo`, which is filled by `libbluetooth.so` at discovery time (`0xac5ec`): it reads AD `0x10` (Device ID, 8 bytes, Amazon VID skipped to the next step) then AD `0xFF`. For an `0xFF` payload of length > 3 and != 8 it takes company = LE16(data[0..1]), PID = BE16(data[2..3]) (`rev16` at `0xad600`) and calls `btif_in_is_amazon_ble_remote(company, pid)` (accepts VID `0x0171` with PIDs `0x411-0x415, 0x418, 0x419, 0x41c, 0x41e, 0x420, 0x421, 0x423, 0x424, 0x443`). Length 8 is a hex-ASCII form for USB VID `0x1949`; length >= 10 with `0x0171` at [4..5] is the Alexa gadget form. GATT PnP ID is not used for discovery.
+**Discovery filter (verified against 5.20.1 stack, 2026-10-08).** `BtDiscoveryFilter::Classify` (`acsbtfd` `0x22574`) has two tables: VID/PID `{0x0171, 0x0443, type 1}` (built at `0x1a1e4`) and UUID `{0x110B, type 0}` only (A2DP). There is no `0x1812` entry, so HID UUID alone is rejected. VID/PID come from `aceBT_getEirManfInfo`, which is filled by `libbluetooth.so` at discovery time (`0xac5ec`): it reads AD `0x10` (Device ID, 8 bytes, Amazon VID skipped to the next step) then AD `0xFF`. For an `0xFF` payload of length > 3 and != 8 it takes company = LE16(data[0..1]), PID = BE16(data[2..3]) (`rev16` at `0xad600`) and calls `btif_in_is_amazon_ble_remote(company, pid)` (accepts VID `0x0171` with PIDs `0x411-0x415, 0x418, 0x419, 0x41c, 0x41e, 0x420, 0x421, 0x423, 0x424, 0x443`). Length 8 is a hex-ASCII form for USB VID `0x1949`; length >= 10 with `0x0171` at [4..5] is the Alexa gadget form. GATT PnP ID is not used for discovery.
 | **Device Information (0x180A):** | | |
 | - PnP ID (`0x2A50`) | `0x01, 0x71, 0x01, 0x43, 0x04, 0x00, 0x01` | Source 0x01 (Bluetooth SIG), VID 0x0171, PID 0x0443, ver 0x0100 |
 | - Firmware Revision (`0x2A26`) | `"1.0.0"` | Read and logged by `acsbtfd` |
@@ -408,7 +408,7 @@ Not needed: ESP32 boards, 502030 / 601120 cells, SWD programmer (only for a futu
 
 | File | Description |
 |---|---|
-| `REVERSE_ENGINEERING.md` | In-depth technical breakdown with disassembly dumps of `acsbtfd` and `input_manager`. |
+| `PROTOCOL_SPEC.md` | In-depth technical breakdown and specifications for Kindle OS input management. |
 | `HARDWARE_GUIDE.md` | ESP32-era BOM and wiring; **superseded by sections 5 and 8**. |
 | `src/main.cpp` | ESP32 NimBLE implementation; **superseded by ZMK (section 6)**. If reused, change PnP source to `0x01` and remove deep sleep between presses. |
 | `platformio.ini` | PlatformIO config for the ESP32 path (superseded). |
