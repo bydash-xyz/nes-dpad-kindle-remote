@@ -46,7 +46,21 @@ This document details the exact hardware components, wiring materials, consumabl
 ### 3.2 Copper Tape Pad Fabrication
 1. **Bench Soldering:** Tin the copper tape contact tails and solder the 28 AWG wires on a bench (or ceramic tile) **before** sticking the tape onto the 3D-printed PETG insert. Soldering directly against plastic will melt the carrier.
 2. **Ground Cross & Signal Pads:** Lay a continuous central ground cross whose arms sit under the inner half of each membrane pill. Place signal pads under the outer halves.
+
+   <img src="docs/images/02-copper-cross.jpg" alt="Copper tape cross laid on the clear PETG insert, before cutting" width="360">
+
+   *Copper tape laid as a cross on the clear PETG insert, before the isolation cuts.*
 3. **Zigzag Gap:** Using a fresh #11 blade, slice a 0.3–0.5 mm zigzag gap dividing each pad into separate signal and ground sections under the carbon pill.
 4. **Continuity Check:** Check with a multimeter:
    - **Unpressed:** Open circuit (infinite resistance).
    - **Pressed:** ~100–400 Ω across signal to ground.
+
+   <img src="docs/images/03-zigzag-pads.jpg" alt="Copper pads with zigzag isolation cuts and Kapton-covered tails" width="360">
+
+   *Zigzag cuts isolate the four outer signal pads from the central ground; the folded tails are covered with Kapton. The ground wire comes up through the center hole.*
+
+### 3.3 Final Assembly
+
+<img src="docs/images/04-xiao-battery-wiring.jpg" alt="XIAO nRF52840 and LiPo cell wired to the pad tails" width="360"> <img src="docs/images/05-assembled-in-case.jpg" alt="Electronics fitted inside the D-pad keychain shell" width="360">
+
+*Left: underside of the insert with the XIAO nRF52840 and the 401230 cell soldered and wired to the pad tails. Right: everything fitted into the keychain shell, USB-C toward the case edge for charging.*

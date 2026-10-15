@@ -2,6 +2,10 @@
 
 A custom miniature Bluetooth Low Energy (BLE) page-turner remote compatible with Amazon Kindle (Kindle Scribe, Colorsoft, Paperwhite 12th Gen, and Kindle devices running firmware 5.20.1+). Built using a **Seeed Studio XIAO nRF52840** running **ZMK Firmware**, designed to fit inside a Nintendo NES-style D-pad gashapon keychain capsule.
 
+<p align="center"><img src="docs/images/01-finished-remote.jpg" alt="Finished NES D-pad Kindle remote keychain" width="420"></p>
+
+<p align="center"><em>The finished remote: a stock NES-style D-pad keychain, with all four directions working as Kindle page-turner buttons.</em></p>
+
 ---
 
 > **Disclaimer:** This project is an independent open-source hardware and software project created strictly for personal interoperability and educational purposes. It is **not affiliated with, sponsored by, or endorsed by Amazon.com, Inc.** All trademarks, product names, and company names belong to their respective owners.
@@ -16,7 +20,7 @@ Kindle firmware 5.20.1+ supports wireless page-turner accessories. This project 
 - **Firmware:** [ZMK Firmware](https://zmk.dev/) with Kindle advertising data patch
 - **Battery:** 3.7V 100 mAh LiPo (401230 cell) with onboard battery reporting
 - **Enclosure:** Gashapon NES D-pad keychain capsule (internal cavity ~35 × 32 × 7 mm with 3D-printed PETG insert)
-- **Contacts:** Direct carbon pill contacts over copper tape pads
+- **Contacts:** Direct carbon pill contacts over copper tape pads (build photos in [HARDWARE.md](HARDWARE.md#3-preparation--assembly-notes))
 
 ---
 
