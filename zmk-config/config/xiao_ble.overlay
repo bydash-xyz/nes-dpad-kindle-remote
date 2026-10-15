@@ -10,10 +10,15 @@
         debounce-press-ms = <10>;
         debounce-release-ms = <20>;
     input-gpios
-        = <&xiao_d 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Forward (0) */
-        , <&xiao_d 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Brighter (1) */
-        , <&xiao_d 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Dimmer / Sleep (3) */
-        , <&xiao_d 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* Backward (5) */
+        = <&xiao_d 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* D_RIGHT: page forward */
+        , <&xiao_d 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* D_UP: brightness up */
+        , <&xiao_d 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* D_DOWN: dim / hold sleep */
+        , <&xiao_d 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>  /* D_LEFT: page back */
         ;
     };
+};
+
+/* Let the flash driver put the P25Q16H in deep power-down whenever it is unused. */
+&p25q16h {
+    zephyr,pm-device-runtime-auto;
 };

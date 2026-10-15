@@ -187,7 +187,7 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 * **Verified** against device stack: see `PROTOCOL_SPEC.md` section 3.1 (`devices.json`) for the `0x0171:0x0443` `page_turner` allowlist entry; the same VID/PID pair appears in the `acsbtfd` table at `0x1a23c`.
 * **PnP vendor-ID source byte:** the original spec used `0x02` (USB-IF). `0x0171` is Amazon's Bluetooth SIG company ID (Amazon's USB VID is `0x1949`), so `0x01` (Bluetooth SIG) is the likely-correct source. `input_manager` matches VID/PID only; whether `acsbtfd` checks the source byte is unverified. Try `0x01` first, fall back to `0x02` if pairing is rejected.
 * **Duplicate services in the original ESP32-C3 sketch (removed):** `NimBLEHIDDevice` already creates the 0x180A and 0x180F services, and the sketch created a second copy of each (two PnP IDs). Fixed in `protocol_test/`.
-* **Stay connected; do not deep-sleep between presses.** Deep sleep drops the BLE link, so each press after idle forces a reconnect + re-encryption (hundreds of ms to >1 s), loses the wake press unless queued, and may trigger Kindle connect/disconnect popups. The remote should hold a persistent connection using a long connection interval and peripheral latency.
+* **Stay connected; do not deep-sleep between presses** (deep sleep after a long idle is used since 6.4). Deep sleep drops the BLE link, so each press after idle forces a reconnect + re-encryption (hundreds of ms to >1 s), loses the wake press unless queued, and may trigger Kindle connect/disconnect popups. The remote should hold a persistent connection using a long connection interval and peripheral latency.
 
 **ESP32-S3 `protocol_test/` results on Kindle Scribe Colorsoft, FW 5.20.1 (2026-10-08): all pass.**
 
@@ -207,7 +207,7 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 | Reconnect after long absence | Remote dropped the link and stopped advertising (`o`), then resumed (`a`). Offline 60 s: reconnected 0.27 s after advertising resumed. 180 s: 2.3 s. 600 s: 2.9 s. No sign of a reconnect limit within 10 min, so the Kindle keeps a background connect to the bonded device. Kindle was asked to stay awake (not confirmed). A deep-sleep remote would still reconnect, at a cost of ~0.3-3 s on the first press. |
 | Battery `< 20%` / `< 5%` | Low and critical warnings both shown on notify. |
 
-**XIAO nRF52840 + ZMK (`zmk-config/`, 2026-10-11), same Kindle on 5.20.1:** discovered and paired first try (listed as "Kindle Click 2" while the ESP32 was still bonded). Page forward/back, brightness up/down and Down-hold sleep all work, driven by jumpering D0-D3 to GND on USB power. Battery cell arrived and attached to BAT pads. 2026-10-12: remapped to D0 fwd / D1 bright+ / D3 dim+sleep / D5 back (default mapping; pins are user-configurable in `xiao_ble.overlay`) and retested through the copper-tape pads; all four work after fixing bridged zigzag gaps (5.5). The `zmk-usb-logging` snippet build (separate build dir) logs every kscan event over USB serial and is the quickest way to tell a pad fault from a Kindle-side fault.
+**XIAO nRF52840 + ZMK (`zmk-config/`, 2026-10-11), same Kindle on 5.20.1:** discovered and paired first try (listed as "Kindle Click 2" while the ESP32 was still bonded). Page forward/back, brightness up/down and Down-hold sleep all work, driven by jumpering D0-D3 to GND on USB power. Battery cell arrived and attached to BAT pads. 2026-10-12: remapped to D_RIGHT (D0) fwd / D_UP (D1) bright+ / D_DOWN (D3) dim+sleep / D_LEFT (D5) back (default mapping; pins are user-configurable in `xiao_ble.overlay`) and retested through the copper-tape pads; all four work after fixing bridged zigzag gaps (5.5). The `zmk-usb-logging` snippet build (separate build dir) logs every kscan event over USB serial and is the quickest way to tell a pad fault from a Kindle-side fault.
 
 **Why the remote cannot wake the Kindle (firmware analysis, 2026-10-08): by design, not a bug in our implementation.**
 * `input_manager` handles the remote's `KEY_POWER` (`0x0030`) as the action `system.sleep` (`categories.json`, `dispatch_on: ["press"]`). The handler at `0x21294` calls powerd proxy vtable slot `0x1c`. The vtable at `0x3bc70` maps that slot to `PowerManagementServiceProxy::setPowerButtonIfActiveAsync(1)`. The name says it acts only when the device is active, so it is one-way sleep, not a toggle. The toggle `setPowerButtonAsync` is slot `0x18` and is never called.
@@ -273,16 +273,15 @@ Test-bench notes: the S3 board's serial is a WCH CH343 (`/dev/cu.usbmodem...`), 
 * Five wires total: D0, D1, D3, D5 (four directions) + GND.
 
 ### 5.6 D-pad button mapping
-| D-pad | XIAO pin | Action | Key |
-|---|---|---|---|
-| Right | D0 | Page forward | `KEY_PAGEDOWN` (HID 0x4E) |
-| Left | D3 | Page back | `KEY_PAGEUP` (HID 0x4B) |
-| Up | D1 | Brightness up | Consumer 0x006F |
-| Up (D1) | D1 | Brightness up | Consumer 0x006F |
-| Down / Dimmer (tap) | D3 | Brightness down | Consumer 0x0070 |
-| Down / Dimmer (hold ~1.5 s) | D3 | Kindle sleep | Consumer 0x0030 (`KEY_POWER`) |
-| Left / Back | D5 | Page back | `KEY_PAGEUP` (HID 0x4B) |
-Pins changed 2026-10-12 (was D0-D3 in order). Keymap position order stays forward, back, up, down; the overlay maps D0, D3, D1, D5 to those positions.
+| Button | Default XIAO pin | Keymap position | Action | Key |
+|---|---|---|---|---|
+| D_RIGHT | D0 | 0 | Page forward | `KEY_PAGEDOWN` (HID 0x4E) |
+| D_UP | D1 | 1 | Brightness up (hold repeats) | Consumer 0x006F |
+| D_DOWN (tap) | D3 | 2 | Brightness down | Consumer 0x0070 |
+| D_DOWN (hold ~1.5 s) | D3 | 2 | Kindle sleep | Consumer 0x0030 (`KEY_POWER`) |
+| D_LEFT | D5 | 3 | Page back | `KEY_PAGEUP` (HID 0x4B) |
+| D_UP + D_RIGHT (hold 5 s) | D1 + D0 | 1 + 0 (combo) | Clear the stored bond (6.4) | none |
+Pins changed 2026-10-12 (was D0-D3 in order). The overlay's `input-gpios` order sets the keymap position; pins are user-configurable there.
 - **Build-time Mapping Customization:** `build.sh` accepts `EXTRA_CMAKE_ARGS` to override overlays or pass definitions (e.g. `EXTRA_CMAKE_ARGS="-DEXTRA_DTC_OVERLAY_FILE=..." ./build.sh`).
 
 * The official remote has **four buttons, five actions**: sleep is a long press of both side buttons.
@@ -351,13 +350,25 @@ Plus a direct-GPIO kscan in `config/xiao_ble.overlay` for D0-D3 (active low, int
 * `CONFIG_ZMK_USB=n`: with USB HID on, ZMK sends keys to the USB host whenever plugged in. Side effect: no USB serial; flash by double-tap reset.
 * Keymap: Down tap sends `C_BRI_DN` through a 30 ms tap macro, matching the ESP32 test (shorter taps are untested against the Kindle's 50 ms debounce stage).
 * Host gotchas: CMake 4.x breaks Zephyr 4.1's SDK lookup unless `ZEPHYR_TOOLCHAIN_VARIANT=zephyr` and `ZEPHYR_SDK_INSTALL_DIR` are set; `west sdk install` failed to list releases, so the SDK was downloaded from the sdk-ng v0.17.0 release.
-* `CONFIG_PM_DEVICE` is not set in the current build; add it when measuring idle current (6.3).
+* Power settings (flash power-down, deep sleep, latency, slow advertising): see 6.4.
 * XIAO received: UF2 bootloader 0.6.1, SoftDevice S140 7.3.0, Board-ID `Seeed_XIAO_nRF52840_Sense` (same bootloader on plain and Sense boards).
 
 ### 6.3 QSPI flash deep power-down
-* Zephyr's `xiao_ble` devicetree marks the P25Q16H `has-dpd`; with the flash driver and `CONFIG_PM_DEVICE` enabled it is held in deep power-down.
-* Known trap: if the sleep pinctrl leaves QSPI chip-select floating, the flash wakes and current rises to ~4 mA. Current upstream `xiao_ble-pinctrl.dtsi` has `bias-pull-up` on `QSPI_CSN` (P0.25) in `qspi_sleep` group2. If ZMK's Zephyr lacks it, override `qspi_sleep` in `xiao_ble.overlay`.
-* Verify by measuring idle current with and without the change.
+* Zephyr's `xiao_ble` devicetree marks the P25Q16H `has-dpd`, but the driver only enters deep power-down from its PM suspend action. With `CONFIG_PM_DEVICE` alone that runs only when ZMK deep sleep suspends devices; otherwise the driver wakes the chip at boot (`exit_dpd` in `qspi_nor_init`) and leaves it in standby. ZMK does not use this chip (settings are in internal flash).
+* Fix (2026-10-14): `CONFIG_PM_DEVICE_RUNTIME=y` plus `zephyr,pm-device-runtime-auto` on `&p25q16h` in the overlay, so the driver suspends it (DPD + QSPI uninit) whenever unused. Runtime PM turns off `PM_DEVICE_SYSTEM_MANAGED` by default, and ZMK sleep's `zmk_pm_suspend_devices` needs it, so the conf sets it to `y` explicitly. ZMK's kscan supports runtime PM (`physical_layouts.c` gets/puts it). Upstream `kscan_gpio_direct.c` lacks `#include <zephyr/pm/device_runtime.h>`; the patch adds it.
+* Known trap: if the sleep pinctrl leaves QSPI chip-select floating, the flash wakes and current rises to ~4 mA. The generated devicetree for this build has `bias-pull-up` on `QSPI_CSN` (P0.25) in `qspi_sleep` group2.
+* Verify by measuring idle current (section 7).
+
+### 6.4 Power tuning (2026-10-14; built and flashed, not yet measured or tested on the Kindle)
+Already in place in the stock `xiao_ble` ZMK build: DC/DC on (`reg1` mode DCDC), `uart0` disabled (console is USB CDC), logging off, 32 kHz crystal, battery divider gated by P0.14 (open-drain, on only while sampling), kscan uses level interrupts (GPIO SENSE, no GPIOTE channel), QSPI peripheral deactivated after init.
+Changes:
+* **Flash deep power-down** at idle (6.3).
+* **Slow advertising when disconnected.** Stock ZMK advertises at 100-150 ms with no limit whenever the profile is not connected (Kindle off, Bluetooth off, out of range), roughly 100+ uA (estimate). The patch adds `CONFIG_ZMK_BLE_KINDLE_FAST_ADV_SECONDS` (default 30): fast advertising for 30 s after a disconnect or boot, then 1-1.2 s. Resets to fast on every connect/disconnect. Expect reconnect after a long absence to take up to ~1 s longer.
+* **Deep sleep after 60 min idle** (`CONFIG_ZMK_SLEEP=y`, `CONFIG_ZMK_IDLE_SLEEP_TIMEOUT=3600000`). Reverses the earlier stay-connected-always rule for long idle only: the waking press resets the chip and is lost, then reconnect takes ~0.3-3 s (4.1 reconnect row). Paid once per reading session; overnight and between-session idle drops to single-digit uA.
+* **Peripheral latency 99, supervision timeout 8 s** (was 30 / 6 s). Idle radio events every ~2 s instead of ~620 ms. Timeout must exceed 2 x (1 + latency) x 20 ms = 4 s. Key presses are not delayed (the peripheral may transmit at any 20 ms event). The Kindle accepted latency 30 in 4.1; acceptance of 99 is untested. If it rejects the request, the link stays at the Kindle default (latency 0), which would cost more power, so check with a sniffer or current trace.
+To check after flashing: pairing and all keys still work; after 60 min idle the remote sleeps and the next press wakes it and reconnects; with the Kindle off, advertising slows after 30 s; idle current (section 7).
+**Pairing fix (2026-10-14).** ZMK keeps the bond in profile 0 across reflashes and rejects any new pairing on a bonded profile ("Rejecting pairing request to taken profile") unless `BT_SMP_ALLOW_UNAUTH_OVERWRITE` is set, and the keymap had no bond-clear key. So after the Kindle forgets the remote it cannot pair again. Fix: `CONFIG_BT_SMP_ALLOW_UNAUTH_OVERWRITE=y` (same Kindle can re-pair over its old bond) and a combo on D_RIGHT + D_UP (positions 0+1, 50 ms window) bound to a 5 s hold-tap `&bt BT_CLR` (new Kindle). The combo delays D_RIGHT and D_UP presses by up to 50 ms while it waits for the second key. Cause inferred from code, not confirmed with logs.
+Not done (each < ~1 uA, estimate): TX power below 0 dBm, removing the USB CDC console, longer battery report interval.
 
 ---
 
@@ -371,10 +382,12 @@ Plus a direct-GPIO kscan in `config/xiao_ble.overlay` for D0-D3 (active low, int
 | 50 uA (typical) | ~65 days |
 | 100 uA (poorly tuned) | ~33 days |
 
-* Measured link: Kindle fixes the interval at 20 ms but accepts peripheral latency 30, so idle radio events every ~620 ms.
+* Measured link: Kindle fixes the interval at 20 ms but accepts peripheral latency 30 (idle radio events every ~620 ms). The build now requests latency 99 (~2 s, 6.4), untested.
 * Main factors: Kindle-chosen connection interval / peripheral latency, QSPI flash power-down, LEDs off, battery divider enabled only when sampling.
 * Measure: multimeter in series with the battery on the uA range while paired and idle. Runtime = 80 mAh / measured current.
-* Optional: ZMK deep sleep after 30-60 min idle gives single-digit uA, at the cost of a ~1 s reconnect on the first press.
+* ZMK deep sleep after 60 min idle (enabled, 6.4) gives single-digit uA, at the cost of a lost first press and ~0.3-3 s reconnect.
+* Use a Nordic PPK2 or uCurrent for idle measurements if available; a multimeter averages bursty BLE current poorly.
+* After assembly, check each pad pin reads > 1 Mohm to GND unpressed: flux or a copper sliver in a zigzag leaks through the ~13 kohm pull-up (100 kohm leak = ~33 uA).
 
 ---
 

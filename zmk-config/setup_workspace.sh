@@ -27,11 +27,10 @@ if [ ! -d "zmk" ]; then
   cd zmk
   git checkout "$ZMK_REV"
   west init -l app
-  west update
-  west zephyr-export
-  pip install -r zephyr/scripts/requirements.txt
   cd "$ws"
 fi
+# Idempotent; also repairs a recreated .venv (e.g. after moving the repo)
+(cd zmk && west update && west zephyr-export && pip install -r zephyr/scripts/requirements.txt)
 
 # 3. Download Zephyr SDK (v0.17.0 for ARM)
 if [ ! -d "zephyr-sdk-0.17.0" ]; then

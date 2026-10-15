@@ -1,8 +1,8 @@
 diff --git a/app/Kconfig b/app/Kconfig
-index fcfdfcbd..cb726095 100644
+index fcfdfcbd..4451a34d 100644
 --- a/app/Kconfig
 +++ b/app/Kconfig
-@@ -245,9 +245,16 @@ config BT_PERIPHERAL_PREF_LATENCY
+@@ -245,9 +245,21 @@ config BT_PERIPHERAL_PREF_LATENCY
  config BT_PERIPHERAL_PREF_TIMEOUT
      default 400
  
@@ -12,6 +12,11 @@ index fcfdfcbd..cb726095 100644
 +      Adds manufacturer data 71 01 04 43 to the advertising packet and moves
 +      the device name to the scan response.
 +
++config ZMK_BLE_KINDLE_FAST_ADV_SECONDS
++    int "Seconds of fast advertising before switching to slow (1-1.2 s) advertising"
++    default 30
++    depends on ZMK_BLE_KINDLE_REMOTE_ADV
++
  # The device name should be 16 characters or less so it fits within the
  # advertising data.
  config BT_DEVICE_NAME_MAX
@@ -19,19 +24,36 @@ index fcfdfcbd..cb726095 100644
      default 16
  
  endif # ZMK_BLE
+diff --git a/app/module/drivers/kscan/kscan_gpio_direct.c b/app/module/drivers/kscan/kscan_gpio_direct.c
+index 45fc8634..795a2601 100644
+--- a/app/module/drivers/kscan/kscan_gpio_direct.c
++++ b/app/module/drivers/kscan/kscan_gpio_direct.c
+@@ -13,6 +13,7 @@
+ #include <zephyr/kernel.h>
+ #include <zephyr/logging/log.h>
+ #include <zephyr/pm/device.h>
++#include <zephyr/pm/device_runtime.h>
+ #include <zephyr/sys/util.h>
+ 
+ #include <zmk/debounce.h>
 diff --git a/app/src/ble.c b/app/src/ble.c
-index 51b172b9..fab679f8 100644
+index 51b172b9..f527f98b 100644
 --- a/app/src/ble.c
 +++ b/app/src/ble.c
-@@ -55,9 +55,16 @@ enum advertising_type {
+@@ -55,9 +55,21 @@ enum advertising_type {
  
  #define CURR_ADV(adv) (adv << 4)
  
 +#if IS_ENABLED(CONFIG_ZMK_BLE_KINDLE_REMOTE_ADV)
-+/* Name goes in the scan response; the primary packet has no room for a 20-char name. */
++/* Name goes in the scan response; the primary packet has no room for a 20-char name.
++ * Advertise fast (100-150 ms) for ZMK_BLE_KINDLE_FAST_ADV_SECONDS after starting, then slow
++ * (1-1.2 s) so a remote whose Kindle is off or out of range does not drain its battery. */
++static bool adv_slow;
++#define ZMK_ADV_CONN_NAME_INT(min, max)                                                            \
++    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN | BT_LE_ADV_OPT_USE_NAME, min, max, NULL)
 +#define ZMK_ADV_CONN_NAME                                                                          \
-+    BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN | BT_LE_ADV_OPT_USE_NAME, BT_GAP_ADV_FAST_INT_MIN_2,       \
-+                    BT_GAP_ADV_FAST_INT_MAX_2, NULL)
++    (adv_slow ? ZMK_ADV_CONN_NAME_INT(BT_GAP_ADV_SLOW_INT_MIN, BT_GAP_ADV_SLOW_INT_MAX)           \
++              : ZMK_ADV_CONN_NAME_INT(BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2))
 +#else
  #define ZMK_ADV_CONN_NAME                                                                          \
      BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN | BT_LE_ADV_OPT_USE_NAME | BT_LE_ADV_OPT_FORCE_NAME_IN_AD,  \
@@ -40,7 +62,7 @@ index 51b172b9..fab679f8 100644
  
  static struct zmk_ble_profile profiles[ZMK_BLE_PROFILE_COUNT];
  static uint8_t active_profile;
-@@ -75,6 +82,10 @@ static struct bt_data zmk_ble_ad[] = {
+@@ -75,6 +87,10 @@ static struct bt_data zmk_ble_ad[] = {
      BT_DATA_BYTES(BT_DATA_UUID16_SOME, BT_UUID_16_ENCODE(BT_UUID_HIDS_VAL), /* HID Service */
                    BT_UUID_16_ENCODE(BT_UUID_BAS_VAL)                        /* Battery Service */
                    ),
@@ -51,3 +73,56 @@ index 51b172b9..fab679f8 100644
  };
  
  #if IS_ENABLED(CONFIG_ZMK_SPLIT_BLE) && IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
+@@ -172,7 +188,35 @@ bool zmk_ble_profile_is_connected(uint8_t index) {
+         LOG_ERR("Advertising failed to start (err %d)", err);                                      \
+         return err;                                                                                \
+     }                                                                                              \
+-    advertising_status = ZMK_ADV_CONN;
++    advertising_status = ZMK_ADV_CONN;                                                             \
++    KINDLE_SCHEDULE_SLOW_ADV();
++
++#if IS_ENABLED(CONFIG_ZMK_BLE_KINDLE_REMOTE_ADV)
++int update_advertising(void);
++
++static void adv_slow_callback(struct k_work *work) {
++    if (advertising_status != ZMK_ADV_CONN || adv_slow) {
++        return;
++    }
++    LOG_DBG("Switching to slow advertising");
++    adv_slow = true;
++    if (bt_le_adv_stop() == 0) {
++        advertising_status = ZMK_ADV_NONE;
++        update_advertising();
++    }
++}
++
++K_WORK_DELAYABLE_DEFINE(adv_slow_work, adv_slow_callback);
++
++#define KINDLE_SCHEDULE_SLOW_ADV()                                                                 \
++    if (!adv_slow) {                                                                               \
++        k_work_reschedule(&adv_slow_work, K_SECONDS(CONFIG_ZMK_BLE_KINDLE_FAST_ADV_SECONDS));     \
++    }
++#define KINDLE_RESET_ADV_SPEED() adv_slow = false
++#else
++#define KINDLE_SCHEDULE_SLOW_ADV()
++#define KINDLE_RESET_ADV_SPEED()
++#endif
+ 
+ int update_advertising(void) {
+     int err = 0;
+@@ -511,6 +555,7 @@ static void connected(struct bt_conn *conn, uint8_t err) {
+ 
+     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+     advertising_status = ZMK_ADV_NONE;
++    KINDLE_RESET_ADV_SPEED();
+ 
+     if (err) {
+         LOG_WRN("Failed to connect to %s (%u)", addr, err);
+@@ -545,6 +590,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason) {
+ 
+     // We need to do this in a work callback, otherwise the advertising update will still see the
+     // connection for a profile as active, and not start advertising yet.
++    KINDLE_RESET_ADV_SPEED();
+     k_work_submit(&update_advertising_work);
+ 
+     if (is_conn_active_profile(conn)) {

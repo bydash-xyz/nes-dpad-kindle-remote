@@ -1,4 +1,4 @@
-# Kindle Compatible D-Pad Remote
+# NES D-Pad Kindle Remote
 
 A custom miniature Bluetooth Low Energy (BLE) page-turner remote compatible with Amazon Kindle (Kindle Scribe, Colorsoft, Paperwhite 12th Gen, and Kindle devices running firmware 5.20.1+). Built using a **Seeed Studio XIAO nRF52840** running **ZMK Firmware**, designed to fit inside a Nintendo NES-style D-pad gashapon keychain capsule.
 
@@ -42,16 +42,19 @@ To pair and operate with compatible Kindle e-readers:
 
 ## D-Pad Key Mapping
 
-Default wiring (each pad shorts its pin to GND; internal pull-ups, no resistors needed):
-
-| Pad / Pin | Function | Kindle HID Event | Behavior |
+| Button | Function | Kindle HID Event | Behavior |
 |---|---|---|---|
-| **D0** (Right) | Page Forward | `KEY_PAGEDOWN` (`0x4E`) | Tap to turn page |
-| **D5** (Left) | Page Backward | `KEY_PAGEUP` (`0x4B`) | Tap to turn page back |
-| **D1** (Up) | Brightness Up | Consumer `0x006F` | Tap or hold to increase brightness |
-| **D3** (Down) | Brightness Down / Sleep | Consumer `0x0070` / `0x0030` | Tap: Brightness down. Hold 1.5s: Kindle sleep |
+| **D_RIGHT** | Page Forward | `KEY_PAGEDOWN` (`0x4E`) | Tap to turn page |
+| **D_LEFT** | Page Backward | `KEY_PAGEUP` (`0x4B`) | Tap to turn page back |
+| **D_UP** | Brightness Up | Consumer `0x006F` | Tap or hold to increase brightness |
+| **D_DOWN** | Brightness Down / Sleep | Consumer `0x0070` / `0x0030` | Tap: Brightness down. Hold 1.5s: Kindle sleep |
+| **D_UP + D_RIGHT** (diagonal) | Forget paired Kindle | Bluetooth bond clear (no key sent) | Hold 5 s to clear the stored pairing so a different Kindle can pair (see Pairing) |
 
-The pins are user-configurable. To use different pins, edit `input-gpios` in `zmk-config/config/xiao_ble.overlay` (any free XIAO pin `D0`-`D10`, e.g. `<&xiao_d 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>`). Keep the entry order (forward, brightness up, dim/sleep, back), because the keymap `bindings` in `xiao_ble.keymap` follow that order; edit the bindings to change what each position sends.
+### Wiring and custom pins
+
+Each pad shorts its XIAO pin to GND (internal pull-ups, no resistors needed). Default pins: D_RIGHT `D0`, D_UP `D1`, D_DOWN `D3`, D_LEFT `D5`.
+
+The pins are user-configurable. To use different pins, edit `input-gpios` in `zmk-config/config/xiao_ble.overlay` (any free XIAO pin `D0`-`D10`, e.g. `<&xiao_d 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>`). Keep the entry order (D_RIGHT, D_UP, D_DOWN, D_LEFT), because the keymap `bindings` in `xiao_ble.keymap` follow that order; edit the bindings to change what each button sends.
 
 ---
 
@@ -83,9 +86,19 @@ Firmware builds use [ZMK Firmware](https://zmk.dev/) on top of Zephyr RTOS.
 
 ---
 
+## Pairing
+
+1. On the Kindle, open the Bluetooth / accessories settings and start pairing a page turner. Press any pad on the remote to wake it if it was asleep.
+2. The remote is listed (the Kindle may show it as "Kindle Click").
+3. **Re-pairing the same Kindle** after removing the remote on the Kindle works directly.
+4. **Pairing a different Kindle:** the remote remembers one Kindle. Hold **D_UP + D_RIGHT** (up-right diagonal) for 5 seconds to clear it, then pair the new Kindle. If the old Kindle still lists the remote, remove it there too.
+
+---
+
 ## Known Behaviors & Limitations
 
 - **Kindle Wake:** The remote cannot wake a sleeping Kindle. Kindle OS 5.20.1 power management does not designate page-turner virtual input devices as wakeup sources. Wake the device with its physical power button.
+- **Deep Sleep:** After 60 minutes without a press, the remote powers down to save battery. The next press wakes it but is not sent; the remote reconnects within ~0.3-3 s, then presses work normally. Change `CONFIG_ZMK_IDLE_SLEEP_TIMEOUT` in `zmk-config/config/xiao_ble.conf` to adjust.
 - **Battery Reporting:** The Kindle's low (< 20%) and critical (< 5%) warnings were verified using simulated battery levels sent from the ESP32 test harness. The ZMK build reports the XIAO's real cell level through the same Battery Service.
 
 ---
@@ -100,9 +113,24 @@ Firmware builds use [ZMK Firmware](https://zmk.dev/) on top of Zephyr RTOS.
 
 - `zmk-config/`: Production ZMK configuration, keymap, and advertising patch.
 - `protocol_test/`: ESP32-S3 PlatformIO harness used to validate the protocol against a Kindle before the ZMK build.
-- `HARDWARE.md`: Bill of materials, hardware components, tools, and assembly instructions.
+- `HARDWARE.md`: Bill of materials, hardware components, tools, and assembly instructions (contains Amazon affiliate links).
 - `PROTOCOL_SPEC.md`: Architectural findings and interoperability specifications for Kindle OS input management.
 - `FINDINGS.md`: Complete hardware research log, protocol benchmarks, power consumption budget, and test results.
+---
+
+## Acknowledgments
+
+- [ZMK Firmware](https://zmk.dev/) (MIT) — keyboard firmware the remote runs on; `zmk-config/patches/` modifies it.
+- [Zephyr RTOS](https://www.zephyrproject.org/) (Apache-2.0) and the Zephyr SDK — RTOS, Bluetooth stack and toolchain under ZMK.
+- [Seeed Studio XIAO nRF52840](https://wiki.seeedstudio.com/XIAO_BLE/) — board and its Zephyr board support.
+- [NimBLE-Arduino](https://github.com/h2zero/NimBLE-Arduino) by h2zero (Apache-2.0) — BLE stack for the ESP32-S3 protocol test harness.
+- [PlatformIO](https://platformio.org/) — builds the test harness.
+- [Bleak](https://github.com/hbldh/bleak) (MIT) — BLE scanning and GATT reads in `protocol_test/tools/ble_scan.py`.
+- [KindleTool](https://github.com/NiLuJe/KindleTool) by NiLuJe (GPL-3.0) — unpacking the Kindle firmware update for interoperability analysis.
+- [Capstone](https://www.capstone-engine.org/), [pyelftools](https://github.com/eliben/pyelftools) and [7-Zip](https://www.7-zip.org/) — disassembly and image extraction during analysis.
+
+No code from these projects is vendored here except the ZMK patch, which is a diff against ZMK.
+
 ---
 
 ## License
