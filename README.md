@@ -53,31 +53,43 @@ To pair and operate with compatible Kindle e-readers:
 
 ## Building the Firmware
 
-Firmware builds are powered by ZMK and Zephyr. A local build script is provided in `zmk-config/`.
+Firmware builds use [ZMK Firmware](https://zmk.dev/) on top of Zephyr RTOS.
 
-### Prerequisites
-- POSIX shell with Python 3, `west`, and CMake (or Docker/GitHub Actions)
-- Arm GNU Toolchain (`arm-none-eabi-gcc`)
+### Prerequisites & Toolchain
+- Python 3.10+ and CMake
+- Zephyr SDK 0.17.0 with `arm-zephyr-eabi` cross-toolchain (do not use generic system `arm-none-eabi-gcc`).
+  - *Note for CMake 4.x users:* If Zephyr SDK discovery fails, ensure `ZEPHYR_TOOLCHAIN_VARIANT=zephyr` and `ZEPHYR_SDK_INSTALL_DIR` are exported before running CMake.
 
-### Local Build
-```bash
-cd zmk-config
-./build.sh
-```
-This generates `zmk-config/kindle_remote.uf2`.
+### Workspace Setup & Build
+1. Initialize the local ZMK workspace and toolchain:
+   ```bash
+   cd zmk-config
+   ./setup_workspace.sh
+   ```
+2. Build the firmware:
+   ```bash
+   ./build.sh
+   ```
+   This compiles `kindle_remote.uf2` in `zmk-config/`. On macOS, if the board is mounted in bootloader mode, `build.sh` automatically flashes the UF2 to the drive.
 
 ### Flashing
 1. Connect the Seeed XIAO nRF52840 via USB-C.
-2. Double-tap the onboard reset button to enter the UF2 bootloader (mounted as `XIAO-SENSE` or `XIAO-NRF52`).
-3. Copy `kindle_remote.uf2` to the drive. The board flashes and reboots automatically.
+2. Double-tap the small reset button to enter the UF2 bootloader (mounts as `XIAO-NRF52` on plain XIAO or `XIAO-SENSE` on Sense boards).
+3. Copy `kindle_remote.uf2` to the drive. The device automatically flashes and reboots.
+
+---
+
+## Known Behaviors & Limitations
+
+- **Kindle Wake:** The remote cannot wake a sleeping Kindle. Kindle OS 5.20.1 power management does not designate page-turner virtual input devices as wakeup sources. Wake the device with its physical power button.
+- **Battery Reporting:** Battery level reporting over BAS is implemented in firmware, but hardware ADC calibration requires the connected LiPo cell to be attached.
 
 ---
 
 ## Hardware & Assembly Safety
 
-- **LiPo Battery Safety:** When soldering pouch cells directly to the board, always insulate the PCM and battery leads with Kapton tape. Never short battery terminals.
-- **Enclosure Fit:** Ensure battery leads and switch wiring do not pinch against the PETG carrier walls or casing screws.
-
+- **LiPo Battery Safety:** Always verify battery polarity with a digital multimeter before soldering to the XIAO pads (JST connector polarities frequently vary across vendors). Insulate the PCM and solder joints with Kapton tape. Never short battery leads.
+- **Enclosure Clearance:** Ensure battery leads and pad wires do not pinch against the PETG carrier walls or casing screws.
 ---
 
 ## Repository Map

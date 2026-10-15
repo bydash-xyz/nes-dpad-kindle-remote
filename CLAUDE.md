@@ -19,11 +19,11 @@ A BLE page-turner remote compatible with Kindle Scribe / Colorsoft (FW 5.20.1+) 
 - DIS firmware revision `0x2A26` = "1.0.0" (read by `acsbtfd`), manufacturer "Amazon", model "Kindle Remote".
 - Battery Service `0x180F` / `0x2A19` read+notify (Kindle warns < 20%, critical < 5%).
 - Keys: keyboard `0x4E` PageDown (forward), `0x4B` PageUp (back); consumer `0x006F` bright+, `0x0070` bright-, `0x0030` power/sleep.
-- Allowlist evidence: `extracted/etc/input_manager/devices.json`, `categories.json`; `acsbtfd` table at `0x1a23c`.
+- Allowlist evidence: Kindle OS `/etc/input_manager/devices.json`, `categories.json` (see `PROTOCOL_SPEC.md`).
 - Stay connected. Do not deep-sleep between presses (drops the link, loses the wake press, reconnect delay).
 
 ## Hardware decisions
-- Usable volume: removable insert **35 x 32 x 7 mm** (measured). Replace with a 3D-printed **PETG** insert (not PLA). Ignore the old 50x50x20 figure in README.md / HARDWARE_GUIDE.md.
+- Usable volume: removable insert **35 x 32 x 7 mm** (measured). Replace with a 3D-printed **PETG** insert (not PLA). Ignore old 50x50x20 estimates in legacy notes.
 - Layout: 401230 cell (4 x 12 x 30) long axis along the 35 mm side; XIAO (21 x 17.8) beside it across the 32 mm side (29.8 mm total, thin or no divider). USB-C slot for charging. Antenna end toward the cavity edge.
 - Battery: cut Micro JST off, verify polarity with a meter, solder to XIAO BAT pads, Kapton over the PCM. Leave charge current at 50 mA default.
 - D-pad contacts: original rubber membrane has carbon pills (100-400 ohm). Pads = one piece of 2" copper tape cut to shape (GND cross + 4 pads + 5 tails); solder 28 AWG wires to tails on the bench (never on the plastic), stick down, then knife-cut a 0.3-0.5 mm zigzag across each pad to isolate the signal half. 5 wires: D0, D1, D3, D5 + GND.
@@ -40,8 +40,7 @@ A BLE page-turner remote compatible with Kindle Scribe / Colorsoft (FW 5.20.1+) 
 | Path | Notes |
 |---|---|
 | `README.md` | Public project documentation and overview. |
-| `FINDINGS.md` | Full findings, decisions, BOM, power budget, test results. |
-| `REVERSE_ENGINEERING.md` | Protocol analysis and clean-room specification of `acsbtfd` / `input_manager`. |
+| `PROTOCOL_SPEC.md` | Protocol analysis and clean-room specification of Kindle BLE input management. |
 | `zmk-config/` | Production ZMK config + Kindle advertising patch; `./build.sh` builds `kindle_remote.uf2`. |
 | `protocol_test/` | ESP32-S3 test harness (PlatformIO, NimBLE-Arduino 1.4.x) for Kindle BLE validation. |
 | `legacy/` | Superseded ESP32-C3 firmware prototype, original findings draft, and obsolete hardware guide. |

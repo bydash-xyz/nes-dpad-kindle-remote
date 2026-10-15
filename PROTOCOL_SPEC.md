@@ -10,13 +10,14 @@
 
 Kindle OS 5.20.1+ includes native Bluetooth Page Turner remote support. This document specifies the exact Bluetooth Low Energy (BLE) profiles, identification data, and HID usage codes required for a custom wireless remote to pair and interact natively with stock Kindle devices without software modifications.
 
-1. **Vendor ID & Product ID Validation:**
-   - **Vendor ID (VID):** `0x0171` (Amazon.com, Inc.)
-   - **Product ID (PID):** `0x0443` ("Amazon Kindle Remote")
-   - Device Name: `"Amazon Kindle Remote"`
+1. **Advertising Data & Primary Discovery Filter:**
+   - **Manufacturer Specific Data (AD Type `0xFF`):** Must carry Amazon company ID `0x0171` (little-endian `71 01`) and Product ID `0x0443` (big-endian `04 43`) in the primary advertising packet (`71 01 04 43`). Without this exact payload, the Kindle discovery filter drops the device immediately, even if HID `0x1812` is advertised.
+   - **Advertised Name:** `"Amazon Kindle Remote"` (scan response is acceptable).
 2. **Device Information Service (DIS 0x180A) & PnP ID:**
-   - Must expose standard Bluetooth PnP ID characteristic (`0x2A50`) encoding VID `0x0171` and PID `0x0443`.
-   - Firmware Revision characteristic (`0x2A26`) is explicitly queried by `acsbtfd` to display the remote firmware version.
+   - **PnP ID (`0x2A50`):** Vendor ID Source `0x01` (Bluetooth SIG), Vendor ID `0x0171` (Amazon), Product ID `0x0443`, Version `0x0100`.
+   - **Firmware Revision (`0x2A26`):** `"1.0.0"` (read by `acsbtfd` upon connection).
+   - **Manufacturer Name (`0x2A29`):** `"Amazon"`
+   - **Model Number (`0x2A24`):** `"Kindle Remote"`
 3. **HID over GATT Profile (HOGP 0x1812):**
    - Must advertise Human Interface Device service (`0x1812`).
    - Standard HID reports for:
@@ -117,25 +118,18 @@ The `page_turner` category configuration reveals the input pipeline:
 
 ### 3.3 Bluetooth Framework Daemon (`/usr/bin/acsbtfd`)
 `acsbtfd` manages device discovery, connection, GATT inspection, and pairing.
+The daemon classifies devices into internal policies:
+- Type 0: `btfd::AudioSinkPolicy` (Bluetooth audio, A2DP UUID `0x110B`)
+- Type 1: `btfd::BleHidPageTurnerPolicy` (Page Turner Remote, VID `0x0171`, PID `0x0443`)
 
-Disassembly of `BtDiscoveryFilter::Classify` (`0x220a6` - `0x22800`):
-1. **Device Policies:**
-   - Type 0: `btfd::AudioSinkPolicy` (Bluetooth headphones, A2DP UUID `0x110B`)
-   - Type 1: `btfd::BleHidPageTurnerPolicy` (Page Turner Remote, VID `0x0171`, PID `0x0443`)
-2. **Matching Criteria:**
-   ```
-   I BtDiscoveryFilter:Classify:VP ID match: name=%P type=%d:
-   I BtDiscoveryFilter:Classify:UUID match: name=%P uuid=0x%04X type=%d:
-   D BtDiscoveryFilter:Classify:rejected: name=%P uuids=%zu enabledTypes=%zu:
-   ```
-   The daemon reads the 16-bit Vendor ID and Product ID from the device's Device Information Service (PnP ID characteristic). When VID is `0x0171` and PID is `0x0443`, it accepts the device into Type 1 (`pageTurner`).
-3. **Characteristic Queries:**
-   - At VMA `0x2f78a` / `0x3b60c`:
-     `movw r3, #0x2a26` (Firmware Revision String)
-     `movw r2, #0x180a` (Device Information Service)
-     Kindle reads `0x2A26` and logs:
-     `I BtService: [pageTurner] %P "%P" bat=%d fw=%s::`
-   - Battery level is obtained from service `0x180F` / characteristic `0x2A19`.
+**Matching Criteria:**
+The discovery filter examines incoming advertising packets:
+- It checks AD `0xFF` (Manufacturer Specific Data) for Amazon's company ID `0x0171` (`71 01`) followed by PID `0x0443` (`04 43`).
+- HID Service UUID `0x1812` alone is rejected without this manufacturer payload.
+
+**Post-Connection Characteristic Queries:**
+- Upon pairing, the Kindle queries DIS (`0x180A`) for PnP ID (`0x2A50`) and Firmware Revision (`0x2A26`).
+- Battery level is read and monitored via Battery Service (`0x180F` / characteristic `0x2A19`).
 
 ### 3.4 User Interface & Physical Remote Specification (`pillow.mo`)
 From the compiled gettext translation table in `app/KPPPillow-2.0/locale/en/LC_MESSAGES/pillow.mo`:
@@ -154,12 +148,13 @@ From the compiled gettext translation table in `app/KPPPillow-2.0/locale/en/LC_M
 
 | Parameter | Required Value | Notes |
 |---|---|---|
-| **Advertised Name** | `Amazon Kindle Remote` | Appears in Kindle Bluetooth settings |
-| **Appearance** | `0x03C1` (Keyboard) or `0x0180` (Remote) | Standard BLE appearance |
-| **Advertised Services** | `0x1812` (HID), `0x180F` (Battery), `0x180A` (DIS) | Required for fast discovery filter match |
-| **PnP ID (0x2A50)** | `0x02, 0x71, 0x01, 0x43, 0x04, 0x00, 0x01` | Source: USB (0x02), VID: 0x0171, PID: 0x0443, Ver: 1.0.0 |
+| **Manufacturer Data (AD 0xFF)** | `71 01 04 43` | Company 0x0171 (LE), PID 0x0443 (BE). **Required in primary ad packet.** |
+| **Advertised Name** | `Amazon Kindle Remote` | Appears in Kindle Bluetooth settings (scan response OK) |
+| **Advertised Services** | `0x1812` (HID) | Human Interface Device service |
+| **PnP ID (0x2A50)** | `0x01, 0x71, 0x01, 0x43, 0x04, 0x00, 0x01` | Source: Bluetooth SIG (0x01), VID: 0x0171, PID: 0x0443, Ver: 1.0.0 |
 | **Firmware Rev (0x2A26)** | `"1.0.0"` | Read by Kindle upon connection |
 | **Manufacturer (0x2A29)** | `"Amazon"` | Standard DIS string |
+| **Model Number (0x2A24)** | `"Kindle Remote"` | Standard DIS string |
 | **Battery Level (0x2A19)** | `0` - `100` (%) | Supports Read + Notify |
 | **Page Forward Key** | `KEY_PAGEDOWN` (HID Usage `0x4E`) | Standard Keyboard report |
 | **Page Back Key** | `KEY_PAGEUP` (HID Usage `0x4B`) | Standard Keyboard report |

@@ -183,8 +183,7 @@ To be recognized by stock Kindle software (no jailbreak), the remote must implem
 | - Report ID 1 (Keyboard) | 8-byte standard report | `0x4E` (PageDown), `0x4B` (PageUp) |
 | - Report ID 2 (Consumer) | 2-byte 16-bit usage report | `0x006F` (Bright+), `0x0070` (Bright-), `0x0030` (Sleep) |
 
-### 4.1 Review notes (2026-10-08)
-* **Verified** against extracted files: `extracted/etc/input_manager/devices.json` contains the `0x0171:0x0443` `page_turner` entry; the same VID/PID pair appears in the `acsbtfd` table at `0x1a23c`.
+* **Verified** against device stack: see `PROTOCOL_SPEC.md` section 3.1 (`devices.json`) for the `0x0171:0x0443` `page_turner` allowlist entry; the same VID/PID pair appears in the `acsbtfd` table at `0x1a23c`.
 * **PnP vendor-ID source byte:** the original spec used `0x02` (USB-IF). `0x0171` is Amazon's Bluetooth SIG company ID (Amazon's USB VID is `0x1949`), so `0x01` (Bluetooth SIG) is the likely-correct source. `input_manager` matches VID/PID only; whether `acsbtfd` checks the source byte is unverified. Try `0x01` first, fall back to `0x02` if pairing is rejected.
 * **Duplicate services in `src/main.cpp`:** `NimBLEHIDDevice` already creates the 0x180A and 0x180F services, and the sketch created a second copy of each (two PnP IDs). Fixed in `protocol_test/`.
 * **Stay connected; do not deep-sleep between presses.** Deep sleep drops the BLE link, so each press after idle forces a reconnect + re-encryption (hundreds of ms to >1 s), loses the wake press unless queued, and may trigger Kindle connect/disconnect popups. The remote should hold a persistent connection using a long connection interval and peripheral latency.
@@ -409,12 +408,11 @@ Not needed: ESP32 boards, 502030 / 601120 cells, SWD programmer (only for a futu
 | File | Description |
 |---|---|
 | `PROTOCOL_SPEC.md` | In-depth technical breakdown and specifications for Kindle OS input management. |
-| `HARDWARE_GUIDE.md` | ESP32-era BOM and wiring; **superseded by sections 5 and 8**. |
-| `src/main.cpp` | ESP32 NimBLE implementation; **superseded by ZMK (section 6)**. If reused, change PnP source to `0x01` and remove deep sleep between presses. |
-| `platformio.ini` | PlatformIO config for the ESP32 path (superseded). |
-| `protocol_test/` | ESP32-S3 protocol test harness (NimBLE 1.4): serial-driven page/brightness/sleep/battery commands, PnP source toggle, connection-parameter logging. Fixes duplicate DIS/BAS services present in `src/main.cpp`. See its README for the test checklist. |
-| `README.md` | Quickstart guide and pairing instructions (ESP32-era). |
-| `FINDINGS.orig.md` | Copy of this document before the 2026-10-08 revision. |
-| `update_kindle_scribe_colorsoft_1st_generation_5.20.1.bin` | Official Amazon firmware image (502 MB). |
-| `extracted_fw/` | Extracted U-boot, kernel, and ext4 `rootfs.img`. |
-| `extracted/` | Extracted configuration files, LIPC scripts, and binary samples. |
+| `README.md` | Overview, ZMK build/flash guide, and safety instructions. |
+| `zmk-config/` | Production ZMK configuration, keymap, and advertising patch. |
+| `protocol_test/` | ESP32-S3 protocol test harness (NimBLE 1.4): serial-driven page/brightness/sleep/battery commands, PnP source toggle, connection-parameter logging. Fixes duplicate DIS/BAS services present in `legacy/src/main.cpp`. See its README for the test checklist. |
+| `legacy/HARDWARE_GUIDE.md` | ESP32-era BOM and wiring; **superseded by sections 5 and 8**. |
+| `legacy/src/main.cpp` | ESP32 NimBLE implementation; **superseded by ZMK (section 6)**. If reused, change PnP source to `0x01` and remove deep sleep between presses. |
+| `legacy/platformio.ini` | PlatformIO config for the legacy ESP32 path (superseded). |
+| `legacy/FINDINGS.orig.md` | Copy of this document before the 2026-10-08 revision. |
+| `local_artifacts/` | Quarantined local firmware updates and extracted analysis images (gitignored). |
